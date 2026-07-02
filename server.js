@@ -108,9 +108,9 @@ app.get('/api/update/check', (req, res) => {
 
 // Endpoint: Download Latest Client Binary
 app.get('/api/update/download', (req, res) => {
-  const binaryPath = path.join(BIN_DIR, 'HardwareMonitorAgent.exe');
+  const binaryPath = path.join(BIN_DIR, 'tester.exe');
   if (fs.existsSync(binaryPath)) {
-    res.download(binaryPath, 'HardwareMonitorAgent.exe');
+    res.download(binaryPath, 'tester.exe');
   } else {
     // Return 404 or serve a dummy message if not compiled yet
     res.status(404).send('Latest binary not available on the server yet. Compile client and copy to src/Backend/bin/');
