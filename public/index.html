@@ -69,9 +69,12 @@
       <section class="devices-section">
         <div class="section-header">
           <h2>Equipos Auditados</h2>
-          <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="deviceSearch" placeholder="Buscar por DNI o nombre...">
+          <div class="header-group" style="display: flex; gap: 1rem; align-items: center;">
+            <button id="exportDevicesBtn" class="btn btn-secondary btn-sm">📥 Exportar Excel</button>
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="deviceSearch" placeholder="Buscar por DNI o nombre...">
+            </div>
           </div>
         </div>
 
@@ -87,6 +90,7 @@
       <section class="alerts-section">
         <div class="section-header">
           <h2>Historial de Inactividad</h2>
+          <button id="exportInactivityBtn" class="btn btn-secondary btn-sm">📥 Exportar Excel</button>
         </div>
         
         <div class="table-container">

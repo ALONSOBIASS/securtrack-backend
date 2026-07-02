@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const devicesContainer = document.getElementById('devicesContainer');
   const inactivityTableBody = document.getElementById('inactivityTableBody');
   const deviceSearch = document.getElementById('deviceSearch');
+  const exportDevicesBtn = document.getElementById('exportDevicesBtn');
+  const exportInactivityBtn = document.getElementById('exportInactivityBtn');
   
   const deviceModal = document.getElementById('deviceModal');
   const closeModal = document.getElementById('closeModal');
@@ -315,6 +317,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Refresh button event
   refreshBtn.addEventListener('click', fetchStats);
+
+  // Export button events
+  if (exportDevicesBtn) exportDevicesBtn.addEventListener('click', exportDevices);
+  if (exportInactivityBtn) exportInactivityBtn.addEventListener('click', exportInactivity);
+
+  // Helper to download CSV openable in Excel
+  function downloadCSV(csvContent, filename) {
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+
+  // Export Devices to CSV
+  function exportDevices() {
+    if (allDevices.length === 0) {
+      alert("No hay equipos auditados para exportar.");
+      return;
+    }
+    
+    let csv = "Colaborador;DNI / ID;Estado;Procesador;RAM (GB);Tipo Disco;Espacio Libre (GB);S.O.;Descarga (Mbps);Subida (Mbps);Latencia (ms);Microfono;Camara;Encendido de PC;Fecha Auditoria\n";
+    
+    allDevices.forEach(d => {
+      const isSSD = d.hardware.isSSD ? "SSD" : "HDD";
+      const hasMic = d.multimedia.hasMicrophone ? "Si" : "No";
+      const hasCam = d.multimedia.hasWebcam ? "Si" : "No";
+      const bootTime = d.uptime && d.uptime.bootTimestamp ? new Date(d.uptime.bootTimestamp).toLocaleString('es-ES') : 'N/A';
+      const auditTime = new Date(d.auditTimestamp).toLocaleString('es-ES');
+      
+      csv += `"${d.fullName}";"${d.documentId}";"${d.status}";"${d.hardware.cpuName}";${d.hardware.ramGB.toFixed(2)};"${isSSD}";${d.hardware.freeDiskGB.toFixed(2)};"${d.hardware.osName}";${d.network.downloadMbps ? d.network.downloadMbps.toFixed(1) : 0};${d.network.uploadMbps ? d.network.uploadMbps.toFixed(1) : 0};${d.network.pingMs ? d.network.pingMs.toFixed(0) : 0};"${hasMic}";"${hasCam}";"${bootTime}";"${auditTime}"\n`;
+    });
+    
+    downloadCSV(csv, "Equipos_Auditados_Biass.csv");
+  }
+
+  // Export Inactivity Log to CSV
+  function exportInactivity() {
+    if (allAlerts.length === 0) {
+      alert("No hay alertas de inactividad para exportar.");
+      return;
+    }
+    
+    let csv = "Colaborador;DNI / ID;Inicio de Inactividad;Duracion\n";
+    
+    allAlerts.forEach(a => {
+      const timeString = new Date(a.startTime).toLocaleString('es-ES');
+      const minutes = Math.floor(a.durationSeconds / 60);
+      const seconds = Math.floor(a.durationSeconds % 60);
+      const durationStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+      
+      csv += `"${a.fullName}";"${a.documentId}";"${timeString}";"${durationStr}"\n`;
+    });
+    
+    downloadCSV(csv, "Reporte_Inactividad_Biass.csv");
+  }
 
   // HTML escaping helper
   function escapeHtml(str) {
