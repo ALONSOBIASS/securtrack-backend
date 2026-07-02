@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=index.html, initial-scale=1.0">
+  <title>Dashboard - Auditoría y Monitoreo de Hardware</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- CSS Link -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="main-header">
+      <div class="header-logo">
+        <span class="logo-icon">🛡️</span>
+        <div class="logo-text">
+          <h1>SecurTrack</h1>
+          <p>Auditoría e Inactividad en Tiempo Real</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="refreshBtn" class="btn btn-primary">
+          <span class="btn-icon">🔄</span> Actualizar Datos
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <section class="stats-grid">
+      <div class="stat-card total-card">
+        <div class="stat-content">
+          <span class="stat-label">Total Equipos</span>
+          <span id="statTotal" class="stat-value">0</span>
+        </div>
+        <span class="stat-icon">💻</span>
+      </div>
+      <div class="stat-card apto-card">
+        <div class="stat-content">
+          <span class="stat-label">Aptos</span>
+          <span id="statAptos" class="stat-value">0</span>
+          <span id="statAptosPct" class="stat-percentage">0% del total</span>
+        </div>
+        <span class="stat-icon">✅</span>
+      </div>
+      <div class="stat-card noapto-card">
+        <div class="stat-content">
+          <span class="stat-label">No Aptos</span>
+          <span id="statNoAptos" class="stat-value">0</span>
+          <span id="statNoAptosPct" class="stat-percentage">0% del total</span>
+        </div>
+        <span class="stat-icon">⚠️</span>
+      </div>
+      <div class="stat-card alerts-card">
+        <div class="stat-content">
+          <span class="stat-label">Alertas de Inactividad</span>
+          <span id="statAlerts" class="stat-value">0</span>
+        </div>
+        <span class="stat-icon">🕒</span>
+      </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Left Column: Devices Grid -->
+      <section class="devices-section">
+        <div class="section-header">
+          <h2>Equipos Auditados</h2>
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="deviceSearch" placeholder="Buscar por DNI o nombre...">
+          </div>
+        </div>
+
+        <div id="devicesContainer" class="devices-container">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Cargando información de auditorías...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Inactivity Log -->
+      <section class="alerts-section">
+        <div class="section-header">
+          <h2>Historial de Inactividad</h2>
+        </div>
+        
+        <div class="table-container">
+          <table class="alerts-table">
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>DNI / ID</th>
+                <th>Inicio</th>
+                <th>Duración</th>
+              </tr>
+            </thead>
+            <tbody id="inactivityTableBody">
+              <tr>
+                <td colspan="4" class="no-data">Cargando alertas de inactividad...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="deviceModal" class="modal">
+    <div class="modal-content">
+      <header class="modal-header">
+        <h2 id="modalDeviceName">Detalles del Dispositivo</h2>
+        <span id="closeModal" class="close-btn">&times;</span>
+      </header>
+      <div id="modalBody" class="modal-body">
+        <!-- Content will be injected dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script src="app.js"></script>
+</body>
+</html>
