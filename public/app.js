@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const downloadPass = device.network.downloadApto ? 'pass' : 'fail';
     const uploadPass = device.network.uploadApto ? 'pass' : 'fail';
-    const latencyPass = device.network.latencyApto ? 'pass' : 'fail';
+    const latencyPass = device.network.pingApto ? 'pass' : 'fail';
     
     const micPass = device.multimedia.hasMicrophone ? 'pass' : 'fail';
     const camPass = device.multimedia.hasWebcam ? 'pass' : 'fail';
