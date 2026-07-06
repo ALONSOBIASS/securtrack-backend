@@ -26,6 +26,171 @@ document.addEventListener('DOMContentLoaded', () => {
   let allDevices = [];
   let allAlerts = [];
 
+  // Global State for Alerts
+  let previousDeviceStates = {}; // documentId -> isOnline
+  let previousAlertCount = 0;
+  let isMuted = localStorage.getItem('alertsMuted') === 'true';
+
+  // Synth sounds using Web Audio API (no dependencies)
+  function playChimeSound() {
+    if (isMuted) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.45);
+    } catch (e) {
+      console.warn("AudioContext blocked:", e);
+    }
+  }
+
+  function playWarningSound() {
+    if (isMuted) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, ctx.currentTime); // A3
+      osc.frequency.setValueAtTime(220, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) {
+      console.warn("AudioContext blocked:", e);
+    }
+  }
+
+  // Floating Toast Notifications Center
+  function showToast(title, desc, type = 'danger') {
+    const container = document.getElementById('notificationCenter');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+
+    let iconSvg = '';
+    if (type === 'danger') {
+      iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+    } else if (type === 'warning') {
+      iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+    } else {
+      iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    }
+
+    toast.innerHTML = `
+      <div class="toast-notification-icon" style="display:flex; align-items:center;">${iconSvg}</div>
+      <div class="toast-notification-content">
+        <div class="toast-notification-title">${escapeHtml(title)}</div>
+        <div class="toast-notification-desc">${escapeHtml(desc)}</div>
+      </div>
+      <button class="toast-notification-close">&times;</button>
+    `;
+
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 50);
+
+    const removeTimeout = setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400);
+    }, 6000);
+
+    toast.querySelector('.toast-notification-close').addEventListener('click', () => {
+      clearTimeout(removeTimeout);
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400);
+    });
+  }
+
+  // Load / Update dynamic config from web
+  const thresholdInput = document.getElementById('thresholdInput');
+  const saveConfigBtn = document.getElementById('saveConfigBtn');
+
+  async function loadSystemConfig() {
+    try {
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      if (data.success && data.config) {
+        thresholdInput.value = data.config.inactivityThresholdSeconds;
+      }
+    } catch (e) {
+      console.error("Error loading config:", e);
+    }
+  }
+
+  if (saveConfigBtn) {
+    saveConfigBtn.addEventListener('click', async () => {
+      const val = parseInt(thresholdInput.value, 10);
+      if (isNaN(val) || val <= 0) {
+        alert("Por favor ingresa un número de segundos válido.");
+        return;
+      }
+      saveConfigBtn.disabled = true;
+      saveConfigBtn.innerText = "...";
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inactivityThresholdSeconds: val })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast("Configuración Guardada", `El umbral de inactividad se actualizó a ${val} segundos.`, 'info');
+        } else {
+          alert("Error al guardar: " + data.error);
+        }
+      } catch (e) {
+        alert("Error al conectar con el servidor.");
+      } finally {
+        saveConfigBtn.disabled = false;
+        saveConfigBtn.innerText = "Aplicar";
+      }
+    });
+  }
+
+  // Mute / Unmute Button toggler
+  const muteBtn = document.getElementById('muteBtn');
+  const volumeIcon = document.getElementById('volumeIcon');
+
+  function updateMuteButtonState() {
+    if (isMuted) {
+      muteBtn.classList.add('muted');
+      volumeIcon.innerHTML = `
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+        <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+      `;
+    } else {
+      muteBtn.classList.remove('muted');
+      volumeIcon.innerHTML = `
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      `;
+    }
+  }
+
+  if (muteBtn) {
+    updateMuteButtonState();
+    muteBtn.addEventListener('click', () => {
+      isMuted = !isMuted;
+      localStorage.setItem('alertsMuted', isMuted);
+      updateMuteButtonState();
+    });
+  }
+
   // Fetch Data from Server API
   async function fetchStats() {
     try {
@@ -34,8 +199,50 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
       
       if (data.success) {
-        allDevices = data.devices || [];
-        allAlerts = data.inactivityAlerts || [];
+        const devices = data.devices || [];
+        const alerts = data.inactivityAlerts || [];
+        
+        // 1. Connection Warning Check (Offline Drops)
+        devices.forEach(dev => {
+          const docId = dev.documentId;
+          const wasOnline = previousDeviceStates[docId];
+          const isOnlineNow = dev.isOnline;
+          
+          if (wasOnline === true && isOnlineNow === false) {
+            showToast("Dispositivo Desconectado", `${dev.fullName} se ha desconectado o apagado.`, 'danger');
+            playWarningSound();
+            
+            // Flash row & card in red warning
+            setTimeout(() => {
+              const rowEl = document.getElementById(`device-row-${docId}`);
+              const cardEl = document.getElementById(`device-card-${docId}`);
+              if (rowEl) {
+                rowEl.classList.add('row-alert-active');
+                setTimeout(() => rowEl.classList.remove('row-alert-active'), 10000);
+              }
+              if (cardEl) {
+                cardEl.classList.add('row-alert-active');
+                setTimeout(() => cardEl.classList.remove('row-alert-active'), 10000);
+              }
+            }, 100);
+          }
+          
+          previousDeviceStates[docId] = isOnlineNow;
+        });
+
+        // 2. New Inactivity Alert Check
+        const currentAlertCount = alerts.length;
+        if (previousAlertCount > 0 && currentAlertCount > previousAlertCount) {
+          const latestAlert = alerts[0];
+          if (latestAlert) {
+            showToast("Alerta de Inactividad", `${latestAlert.fullName} estuvo inactivo por ${Math.round(latestAlert.durationSeconds)}s.`, 'warning');
+            playChimeSound();
+          }
+        }
+        previousAlertCount = currentAlertCount;
+
+        allDevices = devices;
+        allAlerts = alerts;
         renderDashboard();
       } else {
         console.error('Error returned by API:', data.error);
@@ -108,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- Render Device Card ---
       const card = document.createElement('div');
       card.className = 'device-card';
+      card.id = `device-card-${device.documentId}`;
       
       const statusClass = device.status === 'Apto' ? 'badge-apto' : 'badge-noapto';
       const diskLabel = device.hardware.isSSD ? 'SSD' : 'HDD';
@@ -179,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // --- Render Device Table Row ---
       const row = document.createElement('tr');
+      row.id = `device-row-${device.documentId}`;
       row.style.cursor = 'pointer';
       
       const onlineBadgeClass = device.isOnline ? 'badge-online' : 'badge-offline';
@@ -295,6 +504,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="detail-row">
             <span class="detail-label">Versión de Agente</span>
             <span class="detail-value">${escapeHtml(device.agentVersion || '1.0.0')}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Aplicación Activa</span>
+            <span class="detail-value text-highlight" title="${escapeHtml(device.activeWindow || 'Ninguno')}">${escapeHtml(device.activeWindow || 'Ninguno')}</span>
           </div>
         </div>
 
@@ -423,6 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Refresh button event
   refreshBtn.addEventListener('click', fetchStats);
+
+  // Initial loads
+  loadSystemConfig();
 
   // Export button events
   if (exportDevicesBtn) exportDevicesBtn.addEventListener('click', exportDevices);

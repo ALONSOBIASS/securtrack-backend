@@ -31,6 +31,10 @@ if (fs.existsSync(envPath)) {
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 let gistId = null;
 
+let sysConfig = {
+  inactivityThresholdSeconds: 120
+};
+
 // Directories for storing data
 const DATA_DIR = path.join(__dirname, 'data');
 const AUDITS_DIR = path.join(DATA_DIR, 'audits');
@@ -116,6 +120,19 @@ async function initGistDatabase() {
           console.error('[GIST] Error parsing inactivity.json from gist:', e);
         }
       }
+
+      // Restore config
+      if (gistData.files['config.json'] && gistData.files['config.json'].content) {
+        try {
+          const parsedConfig = JSON.parse(gistData.files['config.json'].content);
+          if (parsedConfig && typeof parsedConfig.inactivityThresholdSeconds === 'number') {
+            sysConfig = parsedConfig;
+            console.log(`[GIST] Restored config: Inactivity Threshold = ${sysConfig.inactivityThresholdSeconds}s`);
+          }
+        } catch (e) {
+          console.error('[GIST] Error parsing config.json from gist:', e);
+        }
+      }
     } else {
       console.log('[GIST] SecurTrack Database Gist not found. Creating a new one...');
       const createRes = await fetch('https://api.github.com/gists', {
@@ -131,7 +148,8 @@ async function initGistDatabase() {
           public: false,
           files: {
             'devices.json': { content: '[]' },
-            'inactivity.json': { content: '[]' }
+            'inactivity.json': { content: '[]' },
+            'config.json': { content: JSON.stringify(sysConfig, null, 2) }
           }
         })
       });
@@ -194,7 +212,8 @@ async function syncGist() {
       body: JSON.stringify({
         files: {
           'devices.json': { content: JSON.stringify(devices, null, 2) },
-          'inactivity.json': { content: JSON.stringify(inactivityAlerts, null, 2) }
+          'inactivity.json': { content: JSON.stringify(inactivityAlerts, null, 2) },
+          'config.json': { content: JSON.stringify(sysConfig, null, 2) }
         }
       })
     }).then(res => {
@@ -253,7 +272,7 @@ app.post('/api/audit', (req, res) => {
 // Endpoint: Receive Heartbeat
 app.post('/api/heartbeat', (req, res) => {
   try {
-    const { documentId } = req.body;
+    const { documentId, activeWindow } = req.body;
     if (!documentId) {
       return res.status(400).json({ success: false, error: 'DocumentId is required.' });
     }
@@ -265,6 +284,7 @@ app.post('/api/heartbeat', (req, res) => {
       const content = fs.readFileSync(filePath, 'utf8');
       const data = JSON.parse(content);
       data.lastActive = new Date().toISOString();
+      data.activeWindow = activeWindow || 'Ninguno';
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
       
       // Check if there is a pending audit request for this DNI
@@ -274,7 +294,12 @@ app.post('/api/heartbeat', (req, res) => {
         console.log(`[HEARTBEAT] Sent silent audit request to ${documentId}`);
       }
       
-      return res.json({ success: true, message: 'Heartbeat received.', requestAudit });
+      return res.json({ 
+        success: true, 
+        message: 'Heartbeat received.', 
+        requestAudit, 
+        inactivityThresholdSeconds: sysConfig.inactivityThresholdSeconds 
+      });
     }
 
     res.status(404).json({ success: false, error: 'Device not found.' });
@@ -293,6 +318,31 @@ app.post('/api/devices/:documentId/request-audit', (req, res) => {
     res.json({ success: true, message: 'Re-audit request queued successfully.' });
   } catch (error) {
     console.error('Error queueing audit request:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// Endpoint: Get System Configuration
+app.get('/api/config', (req, res) => {
+  res.json({ success: true, config: sysConfig });
+});
+
+// Endpoint: Update System Configuration
+app.post('/api/config', (req, res) => {
+  try {
+    const { inactivityThresholdSeconds } = req.body;
+    if (typeof inactivityThresholdSeconds !== 'number' || inactivityThresholdSeconds <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid inactivity threshold value.' });
+    }
+    sysConfig.inactivityThresholdSeconds = inactivityThresholdSeconds;
+    console.log(`[CONFIG] Updated inactivity threshold to ${inactivityThresholdSeconds} seconds.`);
+    
+    // Sync with GitHub Gist asynchronously
+    syncGist();
+    
+    res.json({ success: true, message: 'Configuration updated successfully.', config: sysConfig });
+  } catch (error) {
+    console.error('Error updating config:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
