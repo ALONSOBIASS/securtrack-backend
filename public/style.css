@@ -1,23 +1,25 @@
 /* --- Design System & CSS Variables --- */
 :root {
-  --font-main: 'Outfit', sans-serif;
+  --font-main: 'Lato', sans-serif;
+  --font-title: 'Josefin Sans', sans-serif;
   
-  /* Color Palette - Premium HSL & Dark Mode */
-  --bg-app: #080c14;
-  --bg-card: rgba(15, 23, 42, 0.6);
-  --bg-card-hover: rgba(30, 41, 59, 0.7);
-  --border-glass: rgba(255, 255, 255, 0.06);
-  --border-glass-hover: rgba(255, 255, 255, 0.15);
-  --border-focus: rgba(124, 77, 255, 0.6);
+  /* Color Palette - BIASS Brandbook Colors */
+  --bg-app: #070d19; /* Deep Cool Black variant for base background */
+  --bg-card: rgba(15, 45, 105, 0.4); /* Cool Black (#0F2D69) transparent glassmorphism */
+  --bg-card-hover: rgba(3, 70, 121, 0.55); /* Dark Cerulean (#034679) */
+  --border-glass: rgba(232, 252, 252, 0.07); /* Azure Mist (#E8FCFC) border */
+  --border-glass-hover: rgba(232, 252, 252, 0.18);
+  --border-focus: rgba(4, 116, 160, 0.6); /* Cerulean (#0474A0) focus border */
   
-  --color-primary: #7c4dff; /* Deep purple */
-  --color-primary-glow: rgba(124, 77, 255, 0.25);
-  --color-secondary: #00e5ff; /* Cyan */
-  --color-secondary-glow: rgba(0, 229, 255, 0.2);
-  --color-text-main: #f8fafc;
-  --color-text-muted: #94a3b8;
+  --color-primary: #0474A0; /* Cerulean main brand color */
+  --color-primary-glow: rgba(4, 116, 160, 0.3);
+  --color-secondary: #E8FCFC; /* Azure Mist secondary brand color */
+  --color-secondary-glow: rgba(232, 252, 252, 0.15);
   
-  /* Status Colors with Sleek HSL values */
+  --color-text-main: #FFFFFF;
+  --color-text-muted: #BAB9B9; /* Medium Gray secondary text */
+  
+  /* Status Colors */
   --color-success: #10b981; /* Emerald Green */
   --color-success-bg: rgba(16, 185, 129, 0.1);
   --color-warning: #f59e0b; /* Amber Yellow */
@@ -29,7 +31,7 @@
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 8px;
-  --shadow-main: 0 12px 40px -4px rgba(0, 0, 0, 0.4);
+  --shadow-main: 0 12px 40px -4px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px var(--color-primary-glow);
   
   --transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -42,13 +44,18 @@
   padding: 0;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title);
+  letter-spacing: -0.5px;
+}
+
 body {
   font-family: var(--font-main);
   background-color: var(--bg-app);
   background-image: 
-    radial-gradient(at 0% 0%, rgba(124, 77, 255, 0.12) 0px, transparent 40%),
-    radial-gradient(at 50% 0%, rgba(0, 229, 255, 0.08) 0px, transparent 45%),
-    radial-gradient(at 100% 100%, rgba(124, 77, 255, 0.05) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(15, 45, 105, 0.3) 0px, transparent 40%),
+    radial-gradient(at 50% 0%, rgba(4, 116, 160, 0.2) 0px, transparent 45%),
+    radial-gradient(at 100% 100%, rgba(3, 70, 121, 0.1) 0px, transparent 50%);
   background-attachment: fixed;
   color: var(--color-text-main);
   min-height: 100vh;
@@ -142,9 +149,9 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary), #651fff);
+  background: linear-gradient(135deg, var(--color-primary), #034679);
   color: white;
-  box-shadow: 0 4px 15px rgba(124, 77, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(4, 116, 160, 0.35);
   position: relative;
   overflow: hidden;
 }
@@ -167,7 +174,7 @@ body {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(124, 77, 255, 0.5);
+  box-shadow: 0 6px 20px rgba(4, 116, 160, 0.55);
 }
 
 .btn-primary:active {
