@@ -14,6 +14,23 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Serve static dashboard files
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Load environment variables from .env file if it exists (local dev)
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  envContent.split('\n').forEach(line => {
+    const parts = line.split('=');
+    if (parts.length >= 2) {
+      const key = parts[0].trim();
+      const val = parts.slice(1).join('=').trim();
+      process.env[key] = val;
+    }
+  });
+}
+
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+let gistId = null;
+
 // Directories for storing data
 const DATA_DIR = path.join(__dirname, 'data');
 const AUDITS_DIR = path.join(DATA_DIR, 'audits');
@@ -28,10 +45,171 @@ const BIN_DIR = path.join(__dirname, 'bin');
 });
 
 // Current active client version (change this to test OTA updates)
-const LATEST_CLIENT_VERSION = '1.0.8';
+const LATEST_CLIENT_VERSION = '1.0.9';
 
 // Memory store for pending silent audit requests
 const pendingAudits = {};
+
+async function initGistDatabase() {
+  if (!GITHUB_TOKEN) {
+    console.warn('[GIST] WARNING: GITHUB_TOKEN environment variable not set. Persisted database will not be restored.');
+    return;
+  }
+
+  try {
+    console.log('[GIST] Checking for existing SecurTrack Database Gist...');
+    const res = await fetch('https://api.github.com/gists', {
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'User-Agent': 'SecurTrack-Backend',
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to list gists: ${res.statusText}`);
+    }
+
+    const gists = await res.json();
+    const targetGist = gists.find(g => g.description === 'SecurTrack Database');
+
+    if (targetGist) {
+      gistId = targetGist.id;
+      console.log(`[GIST] Found existing Gist with ID: ${gistId}. Restoring local cache...`);
+
+      const gistRes = await fetch(`https://api.github.com/gists/${gistId}`, {
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'User-Agent': 'SecurTrack-Backend'
+        }
+      });
+      const gistData = await gistRes.json();
+
+      // Restore devices
+      if (gistData.files['devices.json'] && gistData.files['devices.json'].content) {
+        try {
+          const devices = JSON.parse(gistData.files['devices.json'].content);
+          if (Array.isArray(devices)) {
+            devices.forEach(device => {
+              const filePath = path.join(AUDITS_DIR, `${device.documentId}.json`);
+              fs.writeFileSync(filePath, JSON.stringify(device, null, 2), 'utf8');
+            });
+            console.log(`[GIST] Restored ${devices.length} devices.`);
+          }
+        } catch (e) {
+          console.error('[GIST] Error parsing devices.json from gist:', e);
+        }
+      }
+
+      // Restore inactivity alerts
+      if (gistData.files['inactivity.json'] && gistData.files['inactivity.json'].content) {
+        try {
+          const alerts = JSON.parse(gistData.files['inactivity.json'].content);
+          if (Array.isArray(alerts)) {
+            alerts.forEach(alert => {
+              const filePath = path.join(INACTIVITY_DIR, `${Date.parse(alert.startTime) || Date.now()}_${alert.documentId}.json`);
+              fs.writeFileSync(filePath, JSON.stringify(alert, null, 2), 'utf8');
+            });
+            console.log(`[GIST] Restored ${alerts.length} inactivity alerts.`);
+          }
+        } catch (e) {
+          console.error('[GIST] Error parsing inactivity.json from gist:', e);
+        }
+      }
+    } else {
+      console.log('[GIST] SecurTrack Database Gist not found. Creating a new one...');
+      const createRes = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'User-Agent': 'SecurTrack-Backend',
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github+json'
+        },
+        body: JSON.stringify({
+          description: 'SecurTrack Database',
+          public: false,
+          files: {
+            'devices.json': { content: '[]' },
+            'inactivity.json': { content: '[]' }
+          }
+        })
+      });
+
+      if (!createRes.ok) {
+        throw new Error(`Failed to create gist: ${createRes.statusText}`);
+      }
+
+      const newGist = await createRes.json();
+      gistId = newGist.id;
+      console.log(`[GIST] Created new private Gist with ID: ${gistId}`);
+    }
+  } catch (error) {
+    console.error('[GIST] Error during Gist initialization:', error);
+  }
+}
+
+async function syncGist() {
+  if (!GITHUB_TOKEN || !gistId) return;
+
+  try {
+    const devices = [];
+    const inactivityAlerts = [];
+
+    // Read all audits
+    if (fs.existsSync(AUDITS_DIR)) {
+      const files = fs.readdirSync(AUDITS_DIR);
+      files.forEach(file => {
+        if (file.endsWith('.json')) {
+          try {
+            const content = fs.readFileSync(path.join(AUDITS_DIR, file), 'utf8');
+            devices.push(JSON.parse(content));
+          } catch (e) {}
+        }
+      });
+    }
+
+    // Read all inactivity alerts
+    if (fs.existsSync(INACTIVITY_DIR)) {
+      const files = fs.readdirSync(INACTIVITY_DIR);
+      files.forEach(file => {
+        if (file.endsWith('.json')) {
+          try {
+            const content = fs.readFileSync(path.join(INACTIVITY_DIR, file), 'utf8');
+            inactivityAlerts.push(JSON.parse(content));
+          } catch (e) {}
+        }
+      });
+    }
+
+    // Perform PATCH update
+    fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'User-Agent': 'SecurTrack-Backend',
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+      },
+      body: JSON.stringify({
+        files: {
+          'devices.json': { content: JSON.stringify(devices, null, 2) },
+          'inactivity.json': { content: JSON.stringify(inactivityAlerts, null, 2) }
+        }
+      })
+    }).then(res => {
+      if (res.ok) {
+        console.log('[GIST] Successfully backed up local database to GitHub Gist.');
+      } else {
+        console.error('[GIST] Failed to update Gist:', res.statusText);
+      }
+    }).catch(err => {
+      console.error('[GIST] Error uploading backup to Gist:', err);
+    });
+  } catch (error) {
+    console.error('[GIST] Error preparing Gist sync:', error);
+  }
+}
 
 // Helper to compare version strings (simple semver check)
 function isOlderVersion(current, latest) {
@@ -61,6 +239,9 @@ app.post('/api/audit', (req, res) => {
     auditData.lastActive = new Date().toISOString();
     fs.writeFileSync(filePath, JSON.stringify(auditData, null, 2), 'utf8');
     console.log(`[AUDIT] Saved report for ${auditData.fullName} (${auditData.documentId})`);
+
+    // Backup to GitHub Gist asynchronously
+    syncGist();
 
     res.json({ success: true, message: 'Audit report saved successfully.' });
   } catch (error) {
@@ -132,6 +313,9 @@ app.post('/api/inactivity', (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(alertData, null, 2), 'utf8');
     console.log(`[INACTIVITY] Saved inactivity alert for ${alertData.fullName} (${alertData.documentId}): ${alertData.durationSeconds}s`);
 
+    // Backup to GitHub Gist asynchronously
+    syncGist();
+
     res.json({ success: true, message: 'Inactivity alert saved successfully.' });
   } catch (error) {
     console.error('Error saving inactivity alert:', error);
@@ -188,7 +372,7 @@ app.get('/api/dashboard/stats', (req, res) => {
           try {
             const content = fs.readFileSync(path.join(AUDITS_DIR, file), 'utf8');
             const deviceData = JSON.parse(content);
-            deviceData.isOnline = deviceData.lastActive ? (Date.now() - new Date(deviceData.lastActive).getTime()) < 65000 : false;
+            deviceData.isOnline = deviceData.lastActive ? (Date.now() - new Date(deviceData.lastActive).getTime()) < 45000 : false;
             devices.push(deviceData);
           } catch (e) {
             console.error(`Error reading audit file ${file}:`, e);
@@ -244,4 +428,7 @@ app.listen(PORT, () => {
   console.log(` Hardware Monitor Backend Running on port ${PORT}`);
   console.log(` Dashboard URL: http://localhost:${PORT}`);
   console.log(`==================================================`);
+  
+  // Initialize and restore Gist database
+  initGistDatabase();
 });
