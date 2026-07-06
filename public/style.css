@@ -506,8 +506,8 @@ body {
   color: #ffd074;
 }
 
-/* --- Inactivity Table Section (Cerulean themed) --- */
-.alerts-section {
+/* --- Devices and Inactivity Table Sections (Cerulean themed) --- */
+.devices-section, .alerts-section {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
@@ -519,11 +519,11 @@ body {
   color: #FFFFFF;
 }
 
-.alerts-section h2 {
+.devices-section h2, .alerts-section h2 {
   color: #FFFFFF;
 }
 
-.alerts-section h2::before {
+.devices-section h2::before, .alerts-section h2::before {
   background: linear-gradient(to bottom, #FFFFFF, var(--color-text-muted));
 }
 
@@ -544,19 +544,19 @@ body {
   border-radius: 3px;
 }
 
-.alerts-table {
+.devices-table, .alerts-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.85rem;
 }
 
-.alerts-table th, .alerts-table td {
+.devices-table th, .devices-table td, .alerts-table th, .alerts-table td {
   padding: 0.9rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.alerts-table th {
+.devices-table th, .alerts-table th {
   color: var(--color-text-muted);
   font-weight: 700;
   text-transform: uppercase;
@@ -569,15 +569,15 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.alerts-table tbody tr {
+.devices-table tbody tr, .alerts-table tbody tr {
   transition: var(--transition-smooth);
 }
 
-.alerts-table tbody tr:hover {
+.devices-table tbody tr:hover, .alerts-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.alerts-table td {
+.devices-table td, .alerts-table td {
   font-weight: 400;
   color: #FFFFFF;
 }

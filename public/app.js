@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const statNoAptosPct = document.getElementById('statNoAptosPct');
   const statAlerts = document.getElementById('statAlerts');
   
-  const devicesContainer = document.getElementById('devicesContainer');
+  const devicesTableBody = document.getElementById('devicesTableBody');
   const inactivityTableBody = document.getElementById('inactivityTableBody');
   const deviceSearch = document.getElementById('deviceSearch');
   const exportDevicesBtn = document.getElementById('exportDevicesBtn');
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderInactivityAlerts();
   }
 
-  // Filter and Render Devices Grid
+  // Filter and Render Devices Table Rows
   function filterAndRenderDevices() {
     const searchTerm = deviceSearch.value.trim().toLowerCase();
     const filteredDevices = allDevices.filter(d => 
@@ -83,83 +83,59 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     if (filteredDevices.length === 0) {
-      devicesContainer.innerHTML = `
-        <div class="no-data" style="grid-column: 1 / -1;">
-          <p>No se encontraron equipos auditados.</p>
-        </div>
+      devicesTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="no-data">No se encontraron equipos registrados.</td>
+        </tr>
       `;
       return;
     }
 
-    devicesContainer.innerHTML = '';
+    devicesTableBody.innerHTML = '';
     filteredDevices.forEach(device => {
-      const card = document.createElement('div');
-      card.className = 'device-card';
-      card.addEventListener('click', () => openDeviceDetails(device));
-
-      const statusClass = device.status === 'Apto' ? 'badge-apto' : 'badge-noapto';
-      const diskLabel = device.hardware.isSSD ? 'SSD' : 'HDD';
+      const row = document.createElement('tr');
+      row.style.cursor = 'pointer';
       
-      // Calculate speeds in Mbps
-      const downloadSpeed = device.network.downloadMbps ? device.network.downloadMbps.toFixed(1) : 'N/A';
-      const uploadSpeed = device.network.uploadMbps ? device.network.uploadMbps.toFixed(1) : 'N/A';
+      const statusClass = device.status === 'Apto' ? 'badge-apto' : 'badge-noapto';
+      const onlineStatusClass = device.isOnline ? 'badge-online' : 'badge-offline';
+      const onlineStatusText = device.isOnline ? 'FUNCIONANDO' : 'APAGADO';
 
-      const onlineStatusClass = device.isOnline ? 'status-online' : 'status-offline';
-      const onlineStatusText = device.isOnline ? 'En Línea' : 'Desconectado';
+      const lastActiveStr = device.lastActive ? new Date(device.lastActive).toLocaleString('es-ES') : 'N/A';
 
-      card.innerHTML = `
-        <div class="device-card-header">
-          <div class="device-user">
-            <h3 style="display: flex; align-items: center; gap: 6px;">
-              <span class="status-indicator ${onlineStatusClass}" title="${onlineStatusText}"></span>
-              ${escapeHtml(device.fullName)}
-            </h3>
-            <p>ID: ${escapeHtml(device.documentId)}</p>
-          </div>
-          <span class="badge ${statusClass}">${device.status}</span>
-        </div>
-        <div class="device-specs">
-          <div class="spec-item">
-            <span class="spec-key">Procesador</span>
-            <span class="spec-val" title="${escapeHtml(device.hardware.cpuName)}">${truncateString(device.hardware.cpuName, 22)}</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-key">RAM</span>
-            <span class="spec-val">${device.hardware.ramGB} GB</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-key">Disco</span>
-            <span class="spec-val">${diskLabel} (${device.hardware.freeDiskGB.toFixed(0)} GB Libres)</span>
-          </div>
-        </div>
-        <div class="device-card-footer">
-          <div class="speed-summary">
-            <span class="speed-dl" title="Velocidad de Descarga">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <polyline points="19 12 12 19 5 12"></polyline>
-              </svg>
-              ${downloadSpeed} Mbps
-            </span>
-            <span class="speed-ul" title="Velocidad de Subida">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="19" x2="12" y2="5"></line>
-                <polyline points="5 12 12 5 19 12"></polyline>
-              </svg>
-              ${uploadSpeed} Mbps
-            </span>
-          </div>
-          <div class="ping-summary">
-            <span title="Latencia (Ping)">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-              </svg>
-              ${device.network.pingMs.toFixed(0)} ms
-            </span>
-          </div>
-        </div>
+      row.innerHTML = `
+        <td><strong>${escapeHtml(device.fullName)}</strong></td>
+        <td>${escapeHtml(device.documentId)}</td>
+        <td>
+          <span class="badge ${onlineStatusClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
+            ${onlineStatusText}
+          </span>
+        </td>
+        <td>${lastActiveStr}</td>
+        <td><span class="badge ${statusClass}">${device.status}</span></td>
+        <td>
+          <button class="btn btn-secondary btn-sm action-details-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:3px;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Detalles
+          </button>
+        </td>
       `;
-      devicesContainer.appendChild(card);
+
+      // Bind row clicks or action clicks to open modal
+      row.addEventListener('click', (e) => {
+        // Prevent opening modal twice if clicking button specifically
+        if (e.target.closest('.action-details-btn')) return;
+        openDeviceDetails(device);
+      });
+      
+      row.querySelector('.action-details-btn').addEventListener('click', () => {
+        openDeviceDetails(device);
+      });
+
+      devicesTableBody.appendChild(row);
     });
   }
 
@@ -321,15 +297,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showError(msg) {
-    devicesContainer.innerHTML = `
-      <div class="no-data" style="grid-column: 1 / -1; color: var(--color-danger); display:flex; flex-direction:column; align-items:center;">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-          <line x1="12" y1="9" x2="12" y2="13"></line>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
-        </svg>
-        <p>${escapeHtml(msg)}</p>
-      </div>
+    devicesTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="no-data" style="color: var(--color-danger); text-align:center;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px; display:inline-block;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          ${escapeHtml(msg)}
+        </td>
+      </tr>
     `;
     inactivityTableBody.innerHTML = `
       <tr>

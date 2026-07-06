@@ -125,11 +125,24 @@
           </div>
         </div>
 
-        <div id="devicesContainer" class="devices-container">
-          <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Cargando información de auditorías...</p>
-          </div>
+        <div class="table-container">
+          <table class="devices-table">
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>DNI / ID</th>
+                <th>Estado PC</th>
+                <th>Último Reporte</th>
+                <th>Evaluación</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="devicesTableBody">
+              <tr>
+                <td colspan="6" class="no-data">Cargando información de equipos...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
