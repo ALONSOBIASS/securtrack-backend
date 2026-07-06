@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const statNoAptosPct = document.getElementById('statNoAptosPct');
   const statAlerts = document.getElementById('statAlerts');
   
+  const tabCardsBtn = document.getElementById('tabCardsBtn');
+  const tabListBtn = document.getElementById('tabListBtn');
+  const devicesContainer = document.getElementById('devicesContainer');
+  const devicesTableContainer = document.getElementById('devicesTableContainer');
   const devicesTableBody = document.getElementById('devicesTableBody');
   const inactivityTableBody = document.getElementById('inactivityTableBody');
   const deviceSearch = document.getElementById('deviceSearch');
@@ -74,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderInactivityAlerts();
   }
 
-  // Filter and Render Devices Table Rows
+  // Filter and Render Devices (both Cards Grid and Connectivity List)
   function filterAndRenderDevices() {
     const searchTerm = deviceSearch.value.trim().toLowerCase();
     const filteredDevices = allDevices.filter(d => 
@@ -82,57 +86,135 @@ document.addEventListener('DOMContentLoaded', () => {
       d.documentId.toLowerCase().includes(searchTerm)
     );
 
+    // 1. Check for empty results
     if (filteredDevices.length === 0) {
+      devicesContainer.innerHTML = `
+        <div class="no-data" style="grid-column: 1 / -1;">
+          <p>No se encontraron equipos registrados.</p>
+        </div>
+      `;
       devicesTableBody.innerHTML = `
         <tr>
-          <td colspan="6" class="no-data">No se encontraron equipos registrados.</td>
+          <td colspan="5" class="no-data">No se encontraron equipos registrados.</td>
         </tr>
       `;
       return;
     }
 
+    devicesContainer.innerHTML = '';
     devicesTableBody.innerHTML = '';
+
     filteredDevices.forEach(device => {
+      // --- Render Device Card ---
+      const card = document.createElement('div');
+      card.className = 'device-card';
+      
+      const statusClass = device.status === 'Apto' ? 'badge-apto' : 'badge-noapto';
+      const diskLabel = device.hardware.isSSD ? 'SSD' : 'HDD';
+      
+      const downloadSpeed = device.network.downloadMbps ? device.network.downloadMbps.toFixed(1) : 'N/A';
+      const uploadSpeed = device.network.uploadMbps ? device.network.uploadMbps.toFixed(1) : 'N/A';
+
+      const onlineIndicatorClass = device.isOnline ? 'status-online' : 'status-offline';
+      const onlineIndicatorText = device.isOnline ? 'En Línea / Funcionando' : 'Desconectado / Apagado';
+
+      card.innerHTML = `
+        <div class="device-card-header">
+          <div class="device-user">
+            <h3 style="display: flex; align-items: center; gap: 6px;">
+              <span class="status-indicator ${onlineIndicatorClass}" title="${onlineIndicatorText}"></span>
+              ${escapeHtml(device.fullName)}
+            </h3>
+            <p>ID: ${escapeHtml(device.documentId)}</p>
+          </div>
+          <span class="badge ${statusClass}">${device.status}</span>
+        </div>
+        <div class="device-specs">
+          <div class="spec-item">
+            <span class="spec-key">Procesador</span>
+            <span class="spec-val" title="${escapeHtml(device.hardware.cpuName)}">${truncateString(device.hardware.cpuName, 22)}</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-key">RAM</span>
+            <span class="spec-val">${device.hardware.ramGB} GB</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-key">Disco</span>
+            <span class="spec-val">${diskLabel} (${device.hardware.freeDiskGB.toFixed(0)} GB Libres)</span>
+          </div>
+        </div>
+        <div class="device-card-footer">
+          <div class="speed-summary">
+            <span class="speed-dl" title="Velocidad de Descarga">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+              </svg>
+              ${downloadSpeed} Mbps
+            </span>
+            <span class="speed-ul" title="Velocidad de Subida">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+              ${uploadSpeed} Mbps
+            </span>
+          </div>
+          <button class="btn btn-secondary btn-sm request-audit-btn" style="font-size: 0.68rem; padding: 0.25rem 0.5rem; line-height: 1; border-color: rgba(255,255,255,0.15); color: #fff; background: rgba(255,255,255,0.05); cursor: pointer;">
+            Actualizar
+          </button>
+        </div>
+      `;
+
+      // Card event listeners
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.request-audit-btn')) return; // Avoid details modal on re-audit click
+        openDeviceDetails(device);
+      });
+      card.querySelector('.request-audit-btn').addEventListener('click', (e) => {
+        requestSilentAudit(device.documentId, e.target);
+      });
+
+      devicesContainer.appendChild(card);
+
+      // --- Render Device Table Row ---
       const row = document.createElement('tr');
       row.style.cursor = 'pointer';
       
-      const statusClass = device.status === 'Apto' ? 'badge-apto' : 'badge-noapto';
-      const onlineStatusClass = device.isOnline ? 'badge-online' : 'badge-offline';
-      const onlineStatusText = device.isOnline ? 'FUNCIONANDO' : 'APAGADO';
-
+      const onlineBadgeClass = device.isOnline ? 'badge-online' : 'badge-offline';
+      const onlineText = device.isOnline ? 'FUNCIONANDO' : 'APAGADO';
       const lastActiveStr = device.lastActive ? new Date(device.lastActive).toLocaleString('es-ES') : 'N/A';
 
       row.innerHTML = `
         <td><strong>${escapeHtml(device.fullName)}</strong></td>
         <td>${escapeHtml(device.documentId)}</td>
         <td>
-          <span class="badge ${onlineStatusClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
-            ${onlineStatusText}
+          <span class="badge ${onlineBadgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
+            ${onlineText}
           </span>
         </td>
         <td>${lastActiveStr}</td>
-        <td><span class="badge ${statusClass}">${device.status}</span></td>
         <td>
-          <button class="btn btn-secondary btn-sm action-details-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
-            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:3px;">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-            Detalles
-          </button>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button class="btn btn-secondary btn-sm table-request-audit-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
+              Actualizar
+            </button>
+            <button class="btn btn-secondary btn-sm table-details-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
+              Detalles
+            </button>
+          </div>
         </td>
       `;
 
-      // Bind row clicks or action clicks to open modal
       row.addEventListener('click', (e) => {
-        // Prevent opening modal twice if clicking button specifically
-        if (e.target.closest('.action-details-btn')) return;
+        if (e.target.closest('.btn')) return;
         openDeviceDetails(device);
       });
-      
-      row.querySelector('.action-details-btn').addEventListener('click', () => {
+      row.querySelector('.table-details-btn').addEventListener('click', () => {
         openDeviceDetails(device);
+      });
+      row.querySelector('.table-request-audit-btn').addEventListener('click', (e) => {
+        requestSilentAudit(device.documentId, e.target);
       });
 
       devicesTableBody.appendChild(row);
@@ -422,6 +504,57 @@ document.addEventListener('DOMContentLoaded', () => {
     if (str.length <= num) return str;
     return str.slice(0, num) + '...';
   }
+
+  // Send request for silent background audit
+  async function requestSilentAudit(documentId, buttonEl) {
+    try {
+      const originalHtml = buttonEl.innerHTML;
+      buttonEl.disabled = true;
+      buttonEl.innerHTML = 'Enviando...';
+      
+      const response = await fetch(`/api/devices/${documentId}/request-audit`, { method: 'POST' });
+      const data = await response.json();
+      
+      if (data.success) {
+        buttonEl.innerHTML = 'Solicitado ✔';
+        buttonEl.style.background = 'rgba(94, 255, 196, 0.2)';
+        buttonEl.style.borderColor = 'rgba(94, 255, 196, 0.4)';
+        buttonEl.style.color = '#5effc4';
+        
+        setTimeout(() => {
+          buttonEl.disabled = false;
+          buttonEl.innerHTML = originalHtml;
+          buttonEl.style.background = '';
+          buttonEl.style.borderColor = '';
+          buttonEl.style.color = '';
+        }, 3000);
+      } else {
+        alert('Error al solicitar re-auditoría: ' + data.error);
+        buttonEl.disabled = false;
+        buttonEl.innerHTML = originalHtml;
+      }
+    } catch (e) {
+      console.error('Error requesting silent audit:', e);
+      alert('Error de conexión al solicitar re-auditoría.');
+      buttonEl.disabled = false;
+      buttonEl.innerHTML = originalHtml;
+    }
+  }
+
+  // Tab Switching Logic
+  tabCardsBtn.addEventListener('click', () => {
+    tabCardsBtn.classList.add('active');
+    tabListBtn.classList.remove('active');
+    devicesContainer.style.display = 'grid';
+    devicesTableContainer.style.display = 'none';
+  });
+
+  tabListBtn.addEventListener('click', () => {
+    tabListBtn.classList.add('active');
+    tabCardsBtn.classList.remove('active');
+    devicesContainer.style.display = 'none';
+    devicesTableContainer.style.display = 'block';
+  });
 
   // Initial Fetch & Auto-Refresh every 15 seconds to track active status
   fetchStats();

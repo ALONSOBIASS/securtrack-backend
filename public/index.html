@@ -98,10 +98,13 @@
 
     <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Left Column: Devices Grid -->
+      <!-- Left Column: Devices Fichas & List Toggle -->
       <section class="devices-section">
-        <div class="section-header">
-          <h2>Equipos Auditados</h2>
+        <div class="section-header" style="flex-wrap: wrap; gap: 1rem;">
+          <div class="tab-header">
+            <button id="tabCardsBtn" class="tab-btn active">Fichas de Hardware</button>
+            <button id="tabListBtn" class="tab-btn">Monitoreo de Conexión</button>
+          </div>
           <div class="header-group" style="display: flex; gap: 1rem; align-items: center;">
             <button id="exportDevicesBtn" class="btn btn-secondary btn-sm">
               <span class="btn-icon">
@@ -125,21 +128,29 @@
           </div>
         </div>
 
-        <div class="table-container">
+        <!-- Tab 1: Fichas/Cards Grid -->
+        <div id="devicesContainer" class="devices-container">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Cargando información de auditorías...</p>
+          </div>
+        </div>
+
+        <!-- Tab 2: Monitoreo/List Table -->
+        <div id="devicesTableContainer" class="table-container" style="display: none;">
           <table class="devices-table">
             <thead>
               <tr>
                 <th>Colaborador</th>
                 <th>DNI / ID</th>
                 <th>Estado PC</th>
-                <th>Último Reporte</th>
-                <th>Evaluación</th>
+                <th>Última Conexión</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="devicesTableBody">
               <tr>
-                <td colspan="6" class="no-data">Cargando información de equipos...</td>
+                <td colspan="5" class="no-data">Cargando monitoreo de conexión...</td>
               </tr>
             </tbody>
           </table>

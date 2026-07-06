@@ -28,7 +28,10 @@ const BIN_DIR = path.join(__dirname, 'bin');
 });
 
 // Current active client version (change this to test OTA updates)
-const LATEST_CLIENT_VERSION = '1.0.7';
+const LATEST_CLIENT_VERSION = '1.0.8';
+
+// Memory store for pending silent audit requests
+const pendingAudits = {};
 
 // Helper to compare version strings (simple semver check)
 function isOlderVersion(current, latest) {
@@ -82,12 +85,33 @@ app.post('/api/heartbeat', (req, res) => {
       const data = JSON.parse(content);
       data.lastActive = new Date().toISOString();
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-      return res.json({ success: true, message: 'Heartbeat received.' });
+      
+      // Check if there is a pending audit request for this DNI
+      const requestAudit = !!pendingAudits[documentId];
+      if (requestAudit) {
+        delete pendingAudits[documentId]; // Clear request once sent
+        console.log(`[HEARTBEAT] Sent silent audit request to ${documentId}`);
+      }
+      
+      return res.json({ success: true, message: 'Heartbeat received.', requestAudit });
     }
 
     res.status(404).json({ success: false, error: 'Device not found.' });
   } catch (error) {
     console.error('Error handling heartbeat:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// Endpoint: Queue silent re-audit request from Dashboard
+app.post('/api/devices/:documentId/request-audit', (req, res) => {
+  try {
+    const { documentId } = req.params;
+    pendingAudits[documentId] = true;
+    console.log(`[AUDIT-REQUEST] Queued silent audit command for worker ${documentId}`);
+    res.json({ success: true, message: 'Re-audit request queued successfully.' });
+  } catch (error) {
+    console.error('Error queueing audit request:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
