@@ -126,11 +126,28 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="device-card-footer">
           <div class="speed-summary">
-            <span>⬇️ ${downloadSpeed} M</span>
-            <span>⬆️ ${uploadSpeed} M</span>
+            <span class="speed-dl" title="Velocidad de Descarga">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+              </svg>
+              ${downloadSpeed} Mbps
+            </span>
+            <span class="speed-ul" title="Velocidad de Subida">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+              ${uploadSpeed} Mbps
+            </span>
           </div>
           <div class="ping-summary">
-            <span>⚡ ${device.network.pingMs.toFixed(0)} ms</span>
+            <span title="Latencia (Ping)">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              ${device.network.pingMs.toFixed(0)} ms
+            </span>
           </div>
         </div>
       `;
@@ -279,22 +296,43 @@ document.addEventListener('DOMContentLoaded', () => {
   function showLoading(isLoading) {
     if (isLoading) {
       refreshBtn.disabled = true;
-      refreshBtn.innerHTML = '<span class="spinner" style="width:16px; height:16px; border-width:2px; display:inline-block;"></span> Actualizando...';
+      refreshBtn.innerHTML = '<span class="spinner" style="width:12px; height:12px; border-width:2px; display:inline-block; margin-right:6px;"></span> Actualizando...';
     } else {
       refreshBtn.disabled = false;
-      refreshBtn.innerHTML = '<span class="btn-icon">🔄</span> Actualizar Datos';
+      refreshBtn.innerHTML = `
+        <span class="btn-icon">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20 15"></path>
+          </svg>
+        </span>
+        Actualizar Datos
+      `;
     }
   }
 
   function showError(msg) {
     devicesContainer.innerHTML = `
-      <div class="no-data" style="grid-column: 1 / -1; color: var(--color-danger);">
-        <p>⚠️ ${escapeHtml(msg)}</p>
+      <div class="no-data" style="grid-column: 1 / -1; color: var(--color-danger); display:flex; flex-direction:column; align-items:center;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <p>${escapeHtml(msg)}</p>
       </div>
     `;
     inactivityTableBody.innerHTML = `
       <tr>
-        <td colspan="4" class="no-data" style="color: var(--color-danger);">⚠️ ${escapeHtml(msg)}</td>
+        <td colspan="4" class="no-data" style="color: var(--color-danger); text-align:center;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px; display:inline-block;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          ${escapeHtml(msg)}
+        </td>
       </tr>
     `;
   }

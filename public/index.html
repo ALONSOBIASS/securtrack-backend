@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=index.html, initial-scale=1.0">
-  <title>Dashboard - Auditoría y Monitoreo de Hardware</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Validador BIASS</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,50 +16,83 @@
     <!-- Header -->
     <header class="main-header">
       <div class="header-logo">
-        <span class="logo-icon">🛡️</span>
+        <div class="logo-mark">++</div>
         <div class="logo-text">
-          <h1>VALIDADOR BIASS</h1>
-          <p>Auditoría de Hardware y Control de Inactividad</p>
+          <h1>BIASS <span class="badge-validador">Validador</span></h1>
+          <p>Transformamos Ideas en Resultados &bull; Auditoría de Hardware y Control de Inactividad</p>
         </div>
       </div>
       <div class="header-actions">
         <button id="refreshBtn" class="btn btn-primary">
-          <span class="btn-icon">🔄</span> Actualizar Datos
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20 15"></path>
+            </svg>
+          </span> 
+          Actualizar Datos
         </button>
       </div>
     </header>
 
     <!-- Stats Grid -->
     <section class="stats-grid">
+      <!-- Total Devices -->
       <div class="stat-card total-card">
         <div class="stat-content">
           <span class="stat-label">Total Equipos</span>
           <span id="statTotal" class="stat-value">0</span>
         </div>
-        <span class="stat-icon">💻</span>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
       </div>
+      <!-- Aptos -->
       <div class="stat-card apto-card">
         <div class="stat-content">
           <span class="stat-label">Aptos</span>
           <span id="statAptos" class="stat-value">0</span>
           <span id="statAptosPct" class="stat-percentage">0% del total</span>
         </div>
-        <span class="stat-icon">✅</span>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
       </div>
+      <!-- No Aptos -->
       <div class="stat-card noapto-card">
         <div class="stat-content">
           <span class="stat-label">No Aptos</span>
           <span id="statNoAptos" class="stat-value">0</span>
           <span id="statNoAptosPct" class="stat-percentage">0% del total</span>
         </div>
-        <span class="stat-icon">⚠️</span>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
       </div>
+      <!-- Alerts -->
       <div class="stat-card alerts-card">
         <div class="stat-content">
           <span class="stat-label">Alertas de Inactividad</span>
           <span id="statAlerts" class="stat-value">0</span>
         </div>
-        <span class="stat-icon">🕒</span>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
       </div>
     </section>
 
@@ -70,9 +103,23 @@
         <div class="section-header">
           <h2>Equipos Auditados</h2>
           <div class="header-group" style="display: flex; gap: 1rem; align-items: center;">
-            <button id="exportDevicesBtn" class="btn btn-secondary btn-sm">📥 Exportar Excel</button>
+            <button id="exportDevicesBtn" class="btn btn-secondary btn-sm">
+              <span class="btn-icon">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </span>
+              Exportar Excel
+            </button>
             <div class="search-box">
-              <span class="search-icon">🔍</span>
+              <span class="search-icon">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
               <input type="text" id="deviceSearch" placeholder="Buscar por DNI o nombre...">
             </div>
           </div>
@@ -90,7 +137,16 @@
       <section class="alerts-section">
         <div class="section-header">
           <h2>Historial de Inactividad</h2>
-          <button id="exportInactivityBtn" class="btn btn-secondary btn-sm">📥 Exportar Excel</button>
+          <button id="exportInactivityBtn" class="btn btn-secondary btn-sm">
+            <span class="btn-icon">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </span>
+            Exportar Excel
+          </button>
         </div>
         
         <div class="table-container">
