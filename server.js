@@ -28,7 +28,7 @@ const BIN_DIR = path.join(__dirname, 'bin');
 });
 
 // Current active client version (change this to test OTA updates)
-const LATEST_CLIENT_VERSION = '1.0.6';
+const LATEST_CLIENT_VERSION = '1.0.7';
 
 // Helper to compare version strings (simple semver check)
 function isOlderVersion(current, latest) {
@@ -55,12 +55,39 @@ app.post('/api/audit', (req, res) => {
     const filePath = path.join(AUDITS_DIR, filename);
 
     // Save/Overwrite the audit file for the user
+    auditData.lastActive = new Date().toISOString();
     fs.writeFileSync(filePath, JSON.stringify(auditData, null, 2), 'utf8');
     console.log(`[AUDIT] Saved report for ${auditData.fullName} (${auditData.documentId})`);
 
     res.json({ success: true, message: 'Audit report saved successfully.' });
   } catch (error) {
     console.error('Error saving audit report:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// Endpoint: Receive Heartbeat
+app.post('/api/heartbeat', (req, res) => {
+  try {
+    const { documentId } = req.body;
+    if (!documentId) {
+      return res.status(400).json({ success: false, error: 'DocumentId is required.' });
+    }
+
+    const filename = `${documentId}.json`;
+    const filePath = path.join(AUDITS_DIR, filename);
+
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const data = JSON.parse(content);
+      data.lastActive = new Date().toISOString();
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      return res.json({ success: true, message: 'Heartbeat received.' });
+    }
+
+    res.status(404).json({ success: false, error: 'Device not found.' });
+  } catch (error) {
+    console.error('Error handling heartbeat:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
@@ -136,7 +163,9 @@ app.get('/api/dashboard/stats', (req, res) => {
         if (file.endsWith('.json')) {
           try {
             const content = fs.readFileSync(path.join(AUDITS_DIR, file), 'utf8');
-            devices.push(JSON.parse(content));
+            const deviceData = JSON.parse(content);
+            deviceData.isOnline = deviceData.lastActive ? (Date.now() - new Date(deviceData.lastActive).getTime()) < 65000 : false;
+            devices.push(deviceData);
           } catch (e) {
             console.error(`Error reading audit file ${file}:`, e);
           }
@@ -166,13 +195,15 @@ app.get('/api/dashboard/stats', (req, res) => {
     const totalDevices = devices.length;
     const aptos = devices.filter(d => d.status === 'Apto').length;
     const noAptos = totalDevices - aptos;
+    const onlineCount = devices.filter(d => d.isOnline).length;
 
     res.json({
       success: true,
       stats: {
         total: totalDevices,
         aptos: aptos,
-        noAptos: noAptos
+        noAptos: noAptos,
+        online: onlineCount
       },
       devices,
       inactivityAlerts

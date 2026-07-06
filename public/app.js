@@ -53,7 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const noAptos = total - aptos;
     const alertsCount = allAlerts.length;
 
-    statTotal.textContent = total;
+    const online = allDevices.filter(d => d.isOnline).length;
+
+    statTotal.innerHTML = `${total} <span style="font-size:0.75rem; font-weight:normal; opacity:0.85; display:block; margin-top:4px;">(${online} en línea)</span>`;
     statAptos.textContent = aptos;
     statNoAptos.textContent = noAptos;
     statAlerts.textContent = alertsCount;
@@ -102,10 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const downloadSpeed = device.network.downloadMbps ? device.network.downloadMbps.toFixed(1) : 'N/A';
       const uploadSpeed = device.network.uploadMbps ? device.network.uploadMbps.toFixed(1) : 'N/A';
 
+      const onlineStatusClass = device.isOnline ? 'status-online' : 'status-offline';
+      const onlineStatusText = device.isOnline ? 'En Línea' : 'Desconectado';
+
       card.innerHTML = `
         <div class="device-card-header">
           <div class="device-user">
-            <h3>${escapeHtml(device.fullName)}</h3>
+            <h3 style="display: flex; align-items: center; gap: 6px;">
+              <span class="status-indicator ${onlineStatusClass}" title="${onlineStatusText}"></span>
+              ${escapeHtml(device.fullName)}
+            </h3>
             <p>ID: ${escapeHtml(device.documentId)}</p>
           </div>
           <span class="badge ${statusClass}">${device.status}</span>
@@ -437,6 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return str.slice(0, num) + '...';
   }
 
-  // Initial Fetch
+  // Initial Fetch & Auto-Refresh every 15 seconds to track active status
   fetchStats();
+  setInterval(fetchStats, 15000);
 });

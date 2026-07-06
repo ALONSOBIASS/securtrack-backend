@@ -415,6 +415,32 @@ body {
   border: 1px solid rgba(255, 132, 132, 0.25);
 }
 
+/* --- Online Status Indicator --- */
+.status-indicator {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-online {
+  background-color: #5effc4;
+  box-shadow: 0 0 8px rgba(94, 255, 196, 0.8);
+  animation: pulse-green 2s infinite;
+}
+
+.status-offline {
+  background-color: #ff8484;
+  box-shadow: 0 0 6px rgba(255, 132, 132, 0.6);
+}
+
+@keyframes pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(94, 255, 196, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(94, 255, 196, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(94, 255, 196, 0); }
+}
+
 .device-specs {
   display: flex;
   flex-direction: column;
