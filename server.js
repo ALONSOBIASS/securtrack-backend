@@ -49,7 +49,7 @@ const BIN_DIR = path.join(__dirname, 'bin');
 });
 
 // Current active client version (change this to test OTA updates)
-const LATEST_CLIENT_VERSION = '1.0.9';
+const LATEST_CLIENT_VERSION = '1.1.0';
 
 // Memory store for pending silent audit requests
 const pendingAudits = {};
