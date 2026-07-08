@@ -331,12 +331,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Third, sort: Connected advisors first, ordered by cumulative inactivity descending (highest idle stand out at top!)
     filteredDevices.sort((a, b) => {
-      // 1. Sort by online state first (true before false)
       if (a.isOnline !== b.isOnline) {
         return a.isOnline ? -1 : 1;
       }
       
-      // Calculate cumulative inactivity seconds
       const inactivityA = allAlerts
         .filter(alert => alert.documentId === a.documentId)
         .reduce((sum, alert) => sum + alert.durationSeconds, 0);
@@ -344,12 +342,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .filter(alert => alert.documentId === b.documentId)
         .reduce((sum, alert) => sum + alert.durationSeconds, 0);
       
-      // 2. If both are online, sort by inactivity descending (highest idle first)
       if (a.isOnline) {
         return inactivityB - inactivityA;
       }
       
-      // 3. If both are offline, sort by name
       return a.fullName.localeCompare(b.fullName);
     });
 
@@ -378,8 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .reduce((sum, a) => sum + a.durationSeconds, 0);
       const totalInactivityMinutes = Math.round(totalInactivitySeconds / 60);
 
-      // Positive indicator: If 0 min, show "🕒 Activo". If >0 min, show "🕒 Ocio: Xm".
-      // If inactivity is heavy (>15m), style it differently
+      // Positive indicator
       let inactivityClass = 'zero';
       let inactivityText = '🕒 Activo';
       if (totalInactivityMinutes > 0) {
@@ -388,14 +383,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const totalInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad hoy">${inactivityText}</span>`;
-      const rowInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" style="font-size:0.68rem; padding: 0.2rem 0.5rem;" title="Tiempo total de inactividad hoy">${inactivityText}</span>`;
+      const rowInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad hoy">${inactivityText}</span>`;
 
       // Active window name formatting
       const activeWin = device.activeWindow || 'Ninguno';
       const truncatedActiveWin = truncateString(activeWin, 25);
       const activeAppTag = `
         <div class="active-app-tag" title="${escapeHtml(activeWin)}">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle;">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-right:2px;">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
             <line x1="8" y1="21" x2="16" y2="21"></line>
             <line x1="12" y1="17" x2="12" y2="21"></line>
@@ -403,6 +398,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <span>${escapeHtml(truncatedActiveWin)}</span>
         </div>
       `;
+
+      // Casing formatting to guarantee no layout shifts
+      const advisorName = device.fullName ? escapeHtml(device.fullName) : 'Asesor Desconocido';
+      const docId = device.documentId ? escapeHtml(device.documentId) : '—';
 
       // --- Render Device Card ---
       const card = document.createElement('div');
@@ -416,16 +415,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const uploadSpeed = device.network.uploadMbps ? device.network.uploadMbps.toFixed(1) : 'N/A';
 
       const onlineIndicatorClass = device.isOnline ? 'status-online' : 'status-offline';
-      const onlineIndicatorText = device.isOnline ? '🟢 Conectado / Funcionando' : '🔴 Apagado / Desconectado';
+      const onlineIndicatorText = device.isOnline ? 'Conectado / Funcionando' : 'Apagado / Desconectado';
 
       card.innerHTML = `
         <div class="device-card-header">
           <div class="device-user">
             <h3 style="display: flex; align-items: center; gap: 8px;">
               <span class="status-indicator ${onlineIndicatorClass}" title="${onlineIndicatorText}"></span>
-              ${escapeHtml(device.fullName)}
+              ${advisorName}
             </h3>
-            <p>ID: ${escapeHtml(device.documentId)}</p>
+            <p>ID: ${docId}</p>
           </div>
           <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <span class="badge ${statusClass}">${device.status}</span>
@@ -466,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
               ${uploadSpeed} M
             </span>
           </div>
-          <button class="btn btn-secondary btn-sm request-audit-btn" style="font-size: 0.68rem; padding: 0.25rem 0.5rem; line-height: 1; border-color: rgba(255,255,255,0.1); color: #94a3b8; background: rgba(255,255,255,0.03); cursor: pointer;">
+          <button class="btn btn-secondary btn-sm request-audit-btn" style="font-size: 0.68rem; padding: 0.25rem 0.5rem; line-height: 1; border-color: rgba(3,70,121,0.15); color: #5e6b85; background: rgba(0,0,0,0.03); cursor: pointer;">
             Actualizar
           </button>
         </div>
@@ -493,15 +492,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const lastActiveFriendly = getRelativeTime(device.lastActive);
 
       row.innerHTML = `
-        <td><strong>${escapeHtml(device.fullName)}</strong></td>
-        <td>${escapeHtml(device.documentId)}</td>
+        <td><strong>${advisorName}</strong></td>
+        <td>${docId}</td>
+        <td>${activeAppTag}</td>
         <td>
-          <span class="active-app-tag" style="background: rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.15);" title="${escapeHtml(activeWin)}">
-            ${escapeHtml(truncateString(activeWin, 22))}
-          </span>
-        </td>
-        <td>
-          <div style="display: flex; gap: 0.4rem; align-items: center;">
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: nowrap;">
             <span class="badge ${onlineBadgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
               ${onlineText}
             </span>
@@ -510,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td>${lastActiveFriendly}</td>
         <td>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <div style="display: flex; gap: 0.4rem; align-items: center;">
             <button class="btn btn-secondary btn-sm table-request-audit-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
               Actualizar
             </button>
@@ -522,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
 
       row.addEventListener('click', (e) => {
-        if (e.target.closest('.btn')) return;
+        if (e.target.closest('.btn') || e.target.closest('.active-app-tag')) return;
         openDeviceDetails(device);
       });
       row.querySelector('.table-details-btn').addEventListener('click', () => {
@@ -630,14 +625,14 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="detail-value">${escapeHtml(device.agentVersion || '1.0.0')}</span>
           </div>
           
-          <div class="detail-row" style="background: rgba(255, 208, 116, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 208, 116, 0.15); margin-top: 0.5rem; margin-bottom: 0.5rem;">
+          <div class="detail-row" style="background: rgba(245, 158, 11, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.15); margin-top: 0.5rem; margin-bottom: 0.5rem;">
             <span class="detail-label" style="font-weight:600; color:var(--color-warning);">Inactividad Acumulada Hoy</span>
             <span class="detail-value" style="color:var(--color-warning); font-weight:700;">
               ${totalInactivityMinutes} minutos (${Math.round(totalInactivitySeconds)} segundos)
             </span>
           </div>
 
-          <div class="detail-row" style="background: rgba(59,130,246,0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(59,130,246,0.1);">
+          <div class="detail-row" style="background: rgba(4, 116, 160, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(3, 70, 121, 0.12);">
             <span class="detail-label" style="font-weight:600; color:var(--color-secondary);">Aplicación Activa (En uso)</span>
             <span class="detail-value text-highlight" title="${escapeHtml(device.activeWindow || 'Ninguno')}" style="font-size:0.86rem; word-break:break-all;">
               ${escapeHtml(device.activeWindow || 'Ninguno')}
@@ -742,6 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Error logging in table view
   function showError(msg) {
     devicesTableBody.innerHTML = `
       <tr>
@@ -879,7 +875,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.success) {
         buttonEl.innerHTML = 'Solicitado ✔';
         buttonEl.style.background = 'var(--color-success-bg)';
-        buttonEl.style.borderColor = 'rgba(0, 245, 160, 0.4)';
+        buttonEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
         buttonEl.style.color = 'var(--color-success)';
         
         setTimeout(() => {
