@@ -267,6 +267,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper to format minutes into a human-readable format (e.g. 15 min or 3h 48m)
+  function formatInactivityTime(totalMinutes) {
+    if (totalMinutes < 60) {
+      return `${totalMinutes} min`;
+    }
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours}h ${minutes}m`;
+  }
+
   // Helper to filter alerts list by date selection
   function getFilteredAlertsByDate() {
     const selectVal = dateFilter ? dateFilter.value : 'today';
@@ -416,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let inactivityText = '🕒 Activo';
       if (totalInactivityMinutes > 0) {
         inactivityClass = totalInactivityMinutes >= 15 ? 'heavy' : '';
-        inactivityText = `🕒 Ocio: ${totalInactivityMinutes} min`;
+        inactivityText = `🕒 Ocio: ${formatInactivityTime(totalInactivityMinutes)}`;
       }
 
       const totalInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad en el período">${inactivityText}</span>`;
@@ -673,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="detail-row" style="background: rgba(245, 158, 11, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.15); margin-top: 0.5rem; margin-bottom: 0.5rem;">
             <span class="detail-label" style="font-weight:600; color:var(--color-warning);">Inactividad Acumulada (${rangeText})</span>
             <span class="detail-value" style="color:var(--color-warning); font-weight:700;">
-              ${totalInactivityMinutes} minutos (${Math.round(totalInactivitySeconds)} segundos)
+              ${formatInactivityTime(totalInactivityMinutes)} (${Math.round(totalInactivitySeconds)} segundos)
             </span>
           </div>
 
