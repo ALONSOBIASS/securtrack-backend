@@ -37,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let previousAlertCount = 0;
   let isMuted = localStorage.getItem('alertsMuted') === 'true';
 
+  // Set initial default tab view (Monitoreo de Conexión active)
+  devicesContainer.style.display = 'none';
+  devicesTableContainer.style.display = 'block';
+
   // Synth sounds using Web Audio API (no dependencies)
   function playChimeSound() {
     if (isMuted) return;
@@ -307,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderInactivityAlerts();
   }
 
-  // Filter and Render Devices (both Cards Grid and Connectivity List)
+  // Filter, Sort and Render Devices (both Cards Grid and Connectivity List)
   function filterAndRenderDevices() {
     const searchTerm = deviceSearch.value.trim().toLowerCase();
     
@@ -325,7 +329,31 @@ document.addEventListener('DOMContentLoaded', () => {
       filteredDevices = filteredDevices.filter(d => !d.isOnline);
     }
 
-    // 1. Check for empty results
+    // Third, sort: Connected advisors first, ordered by cumulative inactivity descending (highest idle stand out at top!)
+    filteredDevices.sort((a, b) => {
+      // 1. Sort by online state first (true before false)
+      if (a.isOnline !== b.isOnline) {
+        return a.isOnline ? -1 : 1;
+      }
+      
+      // Calculate cumulative inactivity seconds
+      const inactivityA = allAlerts
+        .filter(alert => alert.documentId === a.documentId)
+        .reduce((sum, alert) => sum + alert.durationSeconds, 0);
+      const inactivityB = allAlerts
+        .filter(alert => alert.documentId === b.documentId)
+        .reduce((sum, alert) => sum + alert.durationSeconds, 0);
+      
+      // 2. If both are online, sort by inactivity descending (highest idle first)
+      if (a.isOnline) {
+        return inactivityB - inactivityA;
+      }
+      
+      // 3. If both are offline, sort by name
+      return a.fullName.localeCompare(b.fullName);
+    });
+
+    // Check for empty results
     if (filteredDevices.length === 0) {
       devicesContainer.innerHTML = `
         <div class="no-data" style="grid-column: 1 / -1;">
@@ -344,19 +372,23 @@ document.addEventListener('DOMContentLoaded', () => {
     devicesTableBody.innerHTML = '';
 
     filteredDevices.forEach(device => {
-      // Calculate Cumulative Inactivity Minutes
+      // Calculate Cumulative Inactivity minutes
       const totalInactivitySeconds = allAlerts
         .filter(a => a.documentId === device.documentId)
         .reduce((sum, a) => sum + a.durationSeconds, 0);
       const totalInactivityMinutes = Math.round(totalInactivitySeconds / 60);
 
-      const totalInactivityBadge = totalInactivityMinutes > 0
-        ? `<span class="inactivity-badge-total" title="Minutos inactivos acumulados en el historial">🕒 Inactivo: ${totalInactivityMinutes}m</span>`
-        : `<span class="inactivity-badge-total zero" title="Sin inactividad registrada">🕒 Inactivo: 0m</span>`;
+      // Positive indicator: If 0 min, show "🕒 Activo". If >0 min, show "🕒 Ocio: Xm".
+      // If inactivity is heavy (>15m), style it differently
+      let inactivityClass = 'zero';
+      let inactivityText = '🕒 Activo';
+      if (totalInactivityMinutes > 0) {
+        inactivityClass = totalInactivityMinutes >= 15 ? 'heavy' : '';
+        inactivityText = `🕒 Ocio: ${totalInactivityMinutes} min`;
+      }
 
-      const rowInactivityBadge = totalInactivityMinutes > 0
-        ? `<span class="inactivity-badge-total" style="font-size:0.68rem; padding: 0.2rem 0.5rem;" title="Minutos inactivos acumulados en el historial">🕒 ${totalInactivityMinutes}m</span>`
-        : `<span class="inactivity-badge-total zero" style="font-size:0.68rem; padding: 0.2rem 0.5rem;">🕒 0m</span>`;
+      const totalInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad hoy">${inactivityText}</span>`;
+      const rowInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" style="font-size:0.68rem; padding: 0.2rem 0.5rem;" title="Tiempo total de inactividad hoy">${inactivityText}</span>`;
 
       // Active window name formatting
       const activeWin = device.activeWindow || 'Ninguno';
@@ -384,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const uploadSpeed = device.network.uploadMbps ? device.network.uploadMbps.toFixed(1) : 'N/A';
 
       const onlineIndicatorClass = device.isOnline ? 'status-online' : 'status-offline';
-      const onlineIndicatorText = device.isOnline ? 'En Línea / Funcionando' : 'Desconectado / Apagado';
+      const onlineIndicatorText = device.isOnline ? '🟢 Conectado / Funcionando' : '🔴 Apagado / Desconectado';
 
       card.innerHTML = `
         <div class="device-card-header">
@@ -442,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Card event listeners
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.request-audit-btn')) return; // Avoid details modal on re-audit click
+        if (e.target.closest('.request-audit-btn')) return;
         openDeviceDetails(device);
       });
       card.querySelector('.request-audit-btn').addEventListener('click', (e) => {
@@ -457,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
       row.style.cursor = 'pointer';
       
       const onlineBadgeClass = device.isOnline ? 'badge-online' : 'badge-offline';
-      const onlineText = device.isOnline ? 'FUNCIONANDO' : 'APAGADO';
+      const onlineText = device.isOnline ? '🟢 Conectado' : '🔴 Apagado';
       const lastActiveFriendly = getRelativeTime(device.lastActive);
 
       row.innerHTML = `
@@ -504,11 +536,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Render Inactivity Log Timeline
+  // Render Inactivity Log Timeline (descriptive language)
   function renderInactivityAlerts() {
     if (allAlerts.length === 0) {
       inactivityTimeline.innerHTML = `
-        <div class="no-data">No hay alertas de inactividad registradas.</div>
+        <div class="no-data">No hay registros de ocio el día de hoy.</div>
       `;
       return;
     }
@@ -520,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const minutes = Math.floor(alert.durationSeconds / 60);
       const seconds = Math.floor(alert.durationSeconds % 60);
-      const durationStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+      const durationStr = minutes > 0 ? `${minutes} minutos y ${seconds} segundos` : `${seconds} segundos`;
 
       const item = document.createElement('div');
       item.className = 'timeline-item';
@@ -533,7 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="timeline-body" style="margin-top: 4px;">
             <span>DNI: ${escapeHtml(alert.documentId)}</span>
-            <span class="inactivity-duration">${durationStr}</span>
+            <span class="inactivity-duration" style="font-size:0.75rem;">Estuvo inactivo por ${durationStr}</span>
           </div>
         </div>
       `;
@@ -566,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ramPct = Math.min(100, Math.round((device.hardware.ramGB / 16.0) * 100));
     const diskPct = Math.min(100, Math.round((device.hardware.freeDiskGB / 240.0) * 100));
 
-    // Calculate Cumulative Inactivity Minutes
+    // Calculate Cumulative Inactivity minutes
     const totalInactivitySeconds = allAlerts
       .filter(a => a.documentId === device.documentId)
       .reduce((sum, a) => sum + a.durationSeconds, 0);
@@ -599,14 +631,14 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           
           <div class="detail-row" style="background: rgba(255, 208, 116, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 208, 116, 0.15); margin-top: 0.5rem; margin-bottom: 0.5rem;">
-            <span class="detail-label" style="font-weight:600; color:var(--color-warning);">Inactividad Acumulada</span>
+            <span class="detail-label" style="font-weight:600; color:var(--color-warning);">Inactividad Acumulada Hoy</span>
             <span class="detail-value" style="color:var(--color-warning); font-weight:700;">
-              ${totalInactivityMinutes} min (${Math.round(totalInactivitySeconds)} seg)
+              ${totalInactivityMinutes} minutos (${Math.round(totalInactivitySeconds)} segundos)
             </span>
           </div>
 
           <div class="detail-row" style="background: rgba(59,130,246,0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(59,130,246,0.1);">
-            <span class="detail-label" style="font-weight:600; color:var(--color-secondary);">Aplicación Activa</span>
+            <span class="detail-label" style="font-weight:600; color:var(--color-secondary);">Aplicación Activa (En uso)</span>
             <span class="detail-value text-highlight" title="${escapeHtml(device.activeWindow || 'Ninguno')}" style="font-size:0.86rem; word-break:break-all;">
               ${escapeHtml(device.activeWindow || 'Ninguno')}
             </span>

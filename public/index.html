@@ -125,8 +125,8 @@
       <section class="devices-section">
         <div class="section-header" style="flex-wrap: wrap; gap: 1rem;">
           <div class="tab-header">
-            <button id="tabCardsBtn" class="tab-btn active">Fichas de Hardware</button>
-            <button id="tabListBtn" class="tab-btn">Monitoreo de Conexión</button>
+            <button id="tabCardsBtn" class="tab-btn">Fichas de Hardware</button>
+            <button id="tabListBtn" class="tab-btn active">Monitoreo de Conexión</button>
           </div>
           <!-- Filtros de Estado -->
           <div class="status-filter-header">
@@ -158,7 +158,7 @@
         </div>
 
         <!-- Tab 1: Fichas/Cards Grid -->
-        <div id="devicesContainer" class="devices-container">
+        <div id="devicesContainer" class="devices-container" style="display: none;">
           <div class="loading-state">
             <div class="spinner"></div>
             <p>Cargando información de auditorías...</p>
@@ -166,15 +166,15 @@
         </div>
 
         <!-- Tab 2: Monitoreo/List Table -->
-        <div id="devicesTableContainer" class="table-container" style="display: none;">
+        <div id="devicesTableContainer" class="table-container">
           <table class="devices-table">
             <thead>
               <tr>
-                <th>Colaborador</th>
-                <th>DNI / ID</th>
-                <th>Aplicación Activa</th>
-                <th>Estado PC</th>
-                <th>Última Actividad</th>
+                <th>Asesor / Colaborador</th>
+                <th>Identificación (DNI)</th>
+                <th>Ventana Activa (Programa en uso)</th>
+                <th>Estado PC y Ocio</th>
+                <th>Último Latido</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -190,7 +190,7 @@
       <!-- Right Column: Inactivity Log -->
       <section class="alerts-section">
         <div class="section-header">
-          <h2>Historial de Inactividad</h2>
+          <h2>Alertas de Ocio de Hoy</h2>
           <button id="exportInactivityBtn" class="btn btn-secondary btn-sm">
             <span class="btn-icon">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
