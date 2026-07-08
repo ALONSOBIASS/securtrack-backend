@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const devicesTableBody = document.getElementById('devicesTableBody');
   const inactivityTimeline = document.getElementById('inactivityTimeline');
   const deviceSearch = document.getElementById('deviceSearch');
+  const dateFilter = document.getElementById('dateFilter');
   const exportDevicesBtn = document.getElementById('exportDevicesBtn');
   const exportInactivityBtn = document.getElementById('exportInactivityBtn');
   
@@ -266,6 +267,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper to filter alerts list by date selection
+  function getFilteredAlertsByDate() {
+    const selectVal = dateFilter ? dateFilter.value : 'today';
+    const now = new Date();
+    
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    
+    const startOfYesterday = new Date();
+    startOfYesterday.setDate(now.getDate() - 1);
+    startOfYesterday.setHours(0, 0, 0, 0);
+    
+    const endOfYesterday = new Date();
+    endOfYesterday.setDate(now.getDate() - 1);
+    endOfYesterday.setHours(23, 59, 59, 999);
+    
+    const startOf7DaysAgo = new Date();
+    startOf7DaysAgo.setDate(now.getDate() - 7);
+    startOf7DaysAgo.setHours(0, 0, 0, 0);
+
+    return allAlerts.filter(alert => {
+      const alertDate = new Date(alert.startTime);
+      if (selectVal === 'today') {
+        return alertDate >= startOfToday;
+      } else if (selectVal === 'yesterday') {
+        return alertDate >= startOfYesterday && alertDate <= endOfYesterday;
+      } else if (selectVal === 'week') {
+        return alertDate >= startOf7DaysAgo;
+      }
+      return true; // 'all'
+    });
+  }
+
   // Helper for friendly relative time
   function getRelativeTime(dateString) {
     if (!dateString) return 'N/A';
@@ -284,11 +318,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render dashboard elements
   function renderDashboard() {
+    const activeAlerts = getFilteredAlertsByDate();
+
     // 1. KPI Numbers
     const total = allDevices.length;
     const aptos = allDevices.filter(d => d.status === 'Apto').length;
     const noAptos = total - aptos;
-    const alertsCount = allAlerts.length;
+    const alertsCount = activeAlerts.length;
 
     const online = allDevices.filter(d => d.isOnline).length;
 
@@ -314,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Filter, Sort and Render Devices (both Cards Grid and Connectivity List)
   function filterAndRenderDevices() {
     const searchTerm = deviceSearch.value.trim().toLowerCase();
+    const activeAlerts = getFilteredAlertsByDate();
     
     // First, apply text filter
     let filteredDevices = allDevices.filter(d => 
@@ -335,10 +372,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return a.isOnline ? -1 : 1;
       }
       
-      const inactivityA = allAlerts
+      const inactivityA = activeAlerts
         .filter(alert => alert.documentId === a.documentId)
         .reduce((sum, alert) => sum + alert.durationSeconds, 0);
-      const inactivityB = allAlerts
+      const inactivityB = activeAlerts
         .filter(alert => alert.documentId === b.documentId)
         .reduce((sum, alert) => sum + alert.durationSeconds, 0);
       
@@ -368,8 +405,8 @@ document.addEventListener('DOMContentLoaded', () => {
     devicesTableBody.innerHTML = '';
 
     filteredDevices.forEach(device => {
-      // Calculate Cumulative Inactivity minutes
-      const totalInactivitySeconds = allAlerts
+      // Calculate Cumulative Inactivity minutes for selected date range
+      const totalInactivitySeconds = activeAlerts
         .filter(a => a.documentId === device.documentId)
         .reduce((sum, a) => sum + a.durationSeconds, 0);
       const totalInactivityMinutes = Math.round(totalInactivitySeconds / 60);
@@ -382,8 +419,8 @@ document.addEventListener('DOMContentLoaded', () => {
         inactivityText = `🕒 Ocio: ${totalInactivityMinutes} min`;
       }
 
-      const totalInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad hoy">${inactivityText}</span>`;
-      const rowInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad hoy">${inactivityText}</span>`;
+      const totalInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad en el período">${inactivityText}</span>`;
+      const rowInactivityBadge = `<span class="inactivity-badge-total ${inactivityClass}" title="Tiempo total de inactividad en el período">${inactivityText}</span>`;
 
       // Active window name formatting
       const activeWin = device.activeWindow || 'Ninguno';
@@ -399,7 +436,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
-      // Casing formatting to guarantee no layout shifts
       const advisorName = device.fullName ? escapeHtml(device.fullName) : 'Asesor Desconocido';
       const docId = device.documentId ? escapeHtml(device.documentId) : '—';
 
@@ -533,15 +569,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render Inactivity Log Timeline (descriptive language)
   function renderInactivityAlerts() {
-    if (allAlerts.length === 0) {
+    const activeAlerts = getFilteredAlertsByDate();
+    if (activeAlerts.length === 0) {
       inactivityTimeline.innerHTML = `
-        <div class="no-data">No hay registros de ocio el día de hoy.</div>
+        <div class="no-data">No hay registros de ocio para el período seleccionado.</div>
       `;
       return;
     }
 
     inactivityTimeline.innerHTML = '';
-    allAlerts.forEach(alert => {
+    activeAlerts.forEach(alert => {
       const timeString = new Date(alert.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
       const dateFriendly = getRelativeTime(alert.startTime);
       
@@ -593,11 +630,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const ramPct = Math.min(100, Math.round((device.hardware.ramGB / 16.0) * 100));
     const diskPct = Math.min(100, Math.round((device.hardware.freeDiskGB / 240.0) * 100));
 
-    // Calculate Cumulative Inactivity minutes
-    const totalInactivitySeconds = allAlerts
+    // Calculate Cumulative Inactivity minutes for selected date range
+    const activeAlerts = getFilteredAlertsByDate();
+    const totalInactivitySeconds = activeAlerts
       .filter(a => a.documentId === device.documentId)
       .reduce((sum, a) => sum + a.durationSeconds, 0);
     const totalInactivityMinutes = Math.round(totalInactivitySeconds / 60);
+
+    // Get date range text label
+    const selectVal = dateFilter ? dateFilter.value : 'today';
+    let rangeText = 'Hoy';
+    if (selectVal === 'yesterday') rangeText = 'Ayer';
+    if (selectVal === 'week') rangeText = 'Últimos 7 días';
+    if (selectVal === 'all') rangeText = 'Total Histórico';
 
     modalBody.innerHTML = `
       <div class="detail-grid">
@@ -626,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           
           <div class="detail-row" style="background: rgba(245, 158, 11, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.15); margin-top: 0.5rem; margin-bottom: 0.5rem;">
-            <span class="detail-label" style="font-weight:600; color:var(--color-warning);">Inactividad Acumulada Hoy</span>
+            <span class="detail-label" style="font-weight:600; color:var(--color-warning);">Inactividad Acumulada (${rangeText})</span>
             <span class="detail-value" style="color:var(--color-warning); font-weight:700;">
               ${totalInactivityMinutes} minutos (${Math.round(totalInactivitySeconds)} segundos)
             </span>
@@ -737,7 +782,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Error logging in table view
   function showError(msg) {
     devicesTableBody.innerHTML = `
       <tr>
@@ -773,6 +817,11 @@ document.addEventListener('DOMContentLoaded', () => {
   deviceSearch.addEventListener('input', () => {
     filterAndRenderDevices();
   });
+
+  // Date Filter select event
+  if (dateFilter) {
+    dateFilter.addEventListener('change', renderDashboard);
+  }
 
   // Refresh button event
   refreshBtn.addEventListener('click', fetchStats);
@@ -824,14 +873,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Export Inactivity Log to CSV
   function exportInactivity() {
-    if (allAlerts.length === 0) {
-      alert("No hay alertas de inactividad para exportar.");
+    const activeAlerts = getFilteredAlertsByDate();
+    if (activeAlerts.length === 0) {
+      alert("No hay alertas de inactividad para exportar en este período.");
       return;
     }
     
     let csv = "Colaborador;DNI / ID;Inicio de Inactividad;Duracion\n";
     
-    allAlerts.forEach(a => {
+    activeAlerts.forEach(a => {
       const timeString = new Date(a.startTime).toLocaleString('es-ES');
       const minutes = Math.floor(a.durationSeconds / 60);
       const seconds = Math.floor(a.durationSeconds % 60);
