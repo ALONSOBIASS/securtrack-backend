@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const inactivityTimeline = document.getElementById('inactivityTimeline');
   const deviceSearch = document.getElementById('deviceSearch');
   const dateFilter = document.getElementById('dateFilter');
+  const teamFilter = document.getElementById('teamFilter');
   const exportDevicesBtn = document.getElementById('exportDevicesBtn');
   const exportInactivityBtn = document.getElementById('exportInactivityBtn');
   
@@ -376,7 +377,13 @@ document.addEventListener('DOMContentLoaded', () => {
       filteredDevices = filteredDevices.filter(d => !d.isOnline);
     }
 
-    // Third, sort: Connected advisors first, ordered by cumulative inactivity descending (highest idle stand out at top!)
+    // Third, apply team filter selection
+    const teamFilterVal = teamFilter ? teamFilter.value : 'all';
+    if (teamFilterVal !== 'all') {
+      filteredDevices = filteredDevices.filter(d => (d.team || 'Sin Equipo') === teamFilterVal);
+    }
+
+    // Fourth, sort: Connected advisors first, ordered by cumulative inactivity descending
     filteredDevices.sort((a, b) => {
       if (a.isOnline !== b.isOnline) {
         return a.isOnline ? -1 : 1;
@@ -448,6 +455,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const advisorName = device.fullName ? escapeHtml(device.fullName) : 'Asesor Desconocido';
       const docId = device.documentId ? escapeHtml(device.documentId) : '—';
+      const deviceTeam = device.team || 'Sin Equipo';
+
+      // Team Badge Indicator
+      let teamBadge = '';
+      if (deviceTeam !== 'Sin Equipo') {
+        const displayTeamName = deviceTeam.replace('Equipo ', '');
+        teamBadge = `
+          <span class="active-app-tag" style="background: rgba(3, 70, 121, 0.05); border-color: rgba(3, 70, 121, 0.15); color: var(--color-secondary); font-size: 0.68rem; padding: 0.15rem 0.45rem; display: inline-flex; align-items: center; gap: 3px; font-weight: 700; margin-left: 0.35rem;" title="Equipo: ${escapeHtml(deviceTeam)}">
+            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle;">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            ${escapeHtml(displayTeamName)}
+          </span>
+        `;
+      }
 
       // --- Render Device Card ---
       const card = document.createElement('div');
@@ -470,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="status-indicator ${onlineIndicatorClass}" title="${onlineIndicatorText}"></span>
               ${advisorName}
             </h3>
-            <p>ID: ${docId}</p>
+            <p style="display:flex; align-items:center;">ID: ${docId} ${teamBadge}</p>
           </div>
           <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <span class="badge ${statusClass}">${device.status}</span>
@@ -538,7 +563,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const lastActiveFriendly = getRelativeTime(device.lastActive);
 
       row.innerHTML = `
-        <td><strong>${advisorName}</strong></td>
+        <td>
+          <div style="display:flex; align-items:center; flex-wrap:wrap; gap:2px;">
+            <strong>${advisorName}</strong>
+            ${teamBadge}
+          </div>
+        </td>
         <td>${docId}</td>
         <td>${activeAppTag}</td>
         <td>
@@ -654,6 +684,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectVal === 'week') rangeText = 'Últimos 7 días';
     if (selectVal === 'all') rangeText = 'Total Histórico';
 
+    const currentTeam = device.team || 'Sin Equipo';
+    const teamSelectHtml = `
+      <div class="detail-row" style="background: rgba(3, 70, 121, 0.03); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-glass); margin-top: 0.5rem; margin-bottom: 0.5rem;">
+        <span class="detail-label" style="font-weight: 600;">Asignación de Equipo</span>
+        <span class="detail-value">
+          <select id="modalTeamSelect" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; font-family: var(--font-main); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--color-text-main); outline: none; cursor: pointer; font-weight: 700; background: #ffffff;">
+            <option value="Sin Equipo" ${currentTeam === 'Sin Equipo' ? 'selected' : ''}>Sin Asignar</option>
+            <option value="Equipo Fatima" ${currentTeam === 'Equipo Fatima' ? 'selected' : ''}>Equipo Fatima</option>
+            <option value="Equipo Lobos" ${currentTeam === 'Equipo Lobos' ? 'selected' : ''}>Equipo Lobos</option>
+            <option value="Equipo Aguilas" ${currentTeam === 'Equipo Aguilas' ? 'selected' : ''}>Equipo Aguilas</option>
+          </select>
+        </span>
+      </div>
+    `;
+
     modalBody.innerHTML = `
       <div class="detail-grid">
         <!-- Colaborador Section -->
@@ -686,6 +731,8 @@ document.addEventListener('DOMContentLoaded', () => {
               ${formatInactivityTime(totalInactivityMinutes)} (${Math.round(totalInactivitySeconds)} segundos)
             </span>
           </div>
+
+          ${teamSelectHtml}
 
           <div class="detail-row" style="background: rgba(4, 116, 160, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(3, 70, 121, 0.12);">
             <span class="detail-label" style="font-weight:600; color:var(--color-secondary);">Aplicación Activa (En uso)</span>
@@ -759,6 +806,35 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     
     deviceModal.classList.add('open');
+
+    // Bind event listener to save team assignment automatically
+    const modalTeamSelect = document.getElementById('modalTeamSelect');
+    if (modalTeamSelect) {
+      modalTeamSelect.addEventListener('change', async (e) => {
+        const newTeam = e.target.value;
+        modalTeamSelect.disabled = true;
+        try {
+          const res = await fetch('/api/teams', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ documentId: device.documentId, team: newTeam })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast("Equipo Actualizado", `Se asignó a ${device.fullName} al ${newTeam === 'Sin Equipo' ? 'estado Sin Asignar' : newTeam}.`, 'info');
+            // Refresh stats to update dashboard views
+            fetchStats();
+          } else {
+            alert("Error al actualizar el equipo: " + data.error);
+          }
+        } catch (err) {
+          console.error("Error updating team:", err);
+          alert("Error al conectar con el servidor.");
+        } finally {
+          modalTeamSelect.disabled = false;
+        }
+      });
+    }
   }
 
   // Loading indicator helper
@@ -833,6 +909,11 @@ document.addEventListener('DOMContentLoaded', () => {
     dateFilter.addEventListener('change', renderDashboard);
   }
 
+  // Team Filter select event
+  if (teamFilter) {
+    teamFilter.addEventListener('change', renderDashboard);
+  }
+
   // Refresh button event
   refreshBtn.addEventListener('click', fetchStats);
 
@@ -865,7 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    let csv = "Colaborador;DNI / ID;Estado;Procesador;RAM (GB);Tipo Disco;Espacio Libre (GB);S.O.;Descarga (Mbps);Subida (Mbps);Latencia (ms);Microfono;Camara;Encendido de PC;Fecha Auditoria;Programa Activo\n";
+    let csv = "Colaborador;DNI / ID;Equipo;Estado;Procesador;RAM (GB);Tipo Disco;Espacio Libre (GB);S.O.;Descarga (Mbps);Subida (Mbps);Latencia (ms);Microfono;Camara;Encendido de PC;Fecha Auditoria;Programa Activo\n";
     
     allDevices.forEach(d => {
       const isSSD = d.hardware.isSSD ? "SSD" : "HDD";
@@ -874,8 +955,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const bootTime = d.uptime && d.uptime.bootTimestamp ? new Date(d.uptime.bootTimestamp).toLocaleString('es-ES') : 'N/A';
       const auditTime = new Date(d.auditTimestamp).toLocaleString('es-ES');
       const actWin = d.activeWindow || 'Ninguno';
+      const devTeam = d.team || 'Sin Equipo';
       
-      csv += `"${d.fullName}";"${d.documentId}";"${d.status}";"${d.hardware.cpuName}";${d.hardware.ramGB.toFixed(2)};"${isSSD}";${d.hardware.freeDiskGB.toFixed(2)};"${d.hardware.osName}";${d.network.downloadMbps ? d.network.downloadMbps.toFixed(1) : 0};${d.network.uploadMbps ? d.network.uploadMbps.toFixed(1) : 0};${d.network.pingMs ? d.network.pingMs.toFixed(0) : 0};"${hasMic}";"${hasCam}";"${bootTime}";"${auditTime}";"${actWin}"\n`;
+      csv += `"${d.fullName}";"${d.documentId}";"${devTeam}";"${d.status}";"${d.hardware.cpuName}";${d.hardware.ramGB.toFixed(2)};"${isSSD}";${d.hardware.freeDiskGB.toFixed(2)};"${d.hardware.osName}";${d.network.downloadMbps ? d.network.downloadMbps.toFixed(1) : 0};${d.network.uploadMbps ? d.network.uploadMbps.toFixed(1) : 0};${d.network.pingMs ? d.network.pingMs.toFixed(0) : 0};"${hasMic}";"${hasCam}";"${bootTime}";"${auditTime}";"${actWin}"\n`;
     });
     
     downloadCSV(csv, "Equipos_Auditados_Biass.csv");

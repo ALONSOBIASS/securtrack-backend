@@ -35,10 +35,14 @@ let sysConfig = {
   inactivityThresholdSeconds: 120
 };
 
+// Memory store for DNI to Team name assignments
+let teamsMapping = {};
+
 // Directories for storing data
 const DATA_DIR = path.join(__dirname, 'data');
 const AUDITS_DIR = path.join(DATA_DIR, 'audits');
 const INACTIVITY_DIR = path.join(DATA_DIR, 'inactivity');
+const TEAMS_FILE = path.join(DATA_DIR, 'teams.json');
 const BIN_DIR = path.join(__dirname, 'bin');
 
 // Ensure directories exist
@@ -47,6 +51,16 @@ const BIN_DIR = path.join(__dirname, 'bin');
     fs.mkdirSync(dir, { recursive: true });
   }
 });
+
+// Load teams cache locally at startup if it exists
+if (fs.existsSync(TEAMS_FILE)) {
+  try {
+    teamsMapping = JSON.parse(fs.readFileSync(TEAMS_FILE, 'utf8'));
+    console.log(`[TEAMS] Loaded ${Object.keys(teamsMapping).length} assignments from local cache.`);
+  } catch (e) {
+    console.error('[TEAMS] Error reading local teams.json:', e);
+  }
+}
 
 // Current active client version (change this to test OTA updates)
 const LATEST_CLIENT_VERSION = '1.1.0';
@@ -133,6 +147,17 @@ async function initGistDatabase() {
           console.error('[GIST] Error parsing config.json from gist:', e);
         }
       }
+
+      // Restore teams assignments
+      if (gistData.files['teams.json'] && gistData.files['teams.json'].content) {
+        try {
+          teamsMapping = JSON.parse(gistData.files['teams.json'].content);
+          fs.writeFileSync(TEAMS_FILE, JSON.stringify(teamsMapping, null, 2), 'utf8');
+          console.log(`[GIST] Restored ${Object.keys(teamsMapping).length} team assignments.`);
+        } catch (e) {
+          console.error('[GIST] Error parsing teams.json from gist:', e);
+        }
+      }
     } else {
       console.log('[GIST] SecurTrack Database Gist not found. Creating a new one...');
       const createRes = await fetch('https://api.github.com/gists', {
@@ -149,7 +174,8 @@ async function initGistDatabase() {
           files: {
             'devices.json': { content: '[]' },
             'inactivity.json': { content: '[]' },
-            'config.json': { content: JSON.stringify(sysConfig, null, 2) }
+            'config.json': { content: JSON.stringify(sysConfig, null, 2) },
+            'teams.json': { content: '{}' }
           }
         })
       });
@@ -213,7 +239,8 @@ async function syncGist() {
         files: {
           'devices.json': { content: JSON.stringify(devices, null, 2) },
           'inactivity.json': { content: JSON.stringify(inactivityAlerts, null, 2) },
-          'config.json': { content: JSON.stringify(sysConfig, null, 2) }
+          'config.json': { content: JSON.stringify(sysConfig, null, 2) },
+          'teams.json': { content: JSON.stringify(teamsMapping, null, 2) }
         }
       })
     }).then(res => {
@@ -373,6 +400,38 @@ app.post('/api/inactivity', (req, res) => {
   }
 });
 
+// Endpoint: Get team assignments
+app.get('/api/teams', (req, res) => {
+  res.json({ success: true, teams: teamsMapping });
+});
+
+// Endpoint: Save team assignment for a device
+app.post('/api/teams', (req, res) => {
+  try {
+    const { documentId, team } = req.body;
+    if (!documentId) {
+      return res.status(400).json({ success: false, error: 'DocumentId is required.' });
+    }
+    
+    if (team && team !== 'Sin Equipo') {
+      teamsMapping[documentId] = team;
+    } else {
+      delete teamsMapping[documentId];
+    }
+    
+    fs.writeFileSync(TEAMS_FILE, JSON.stringify(teamsMapping, null, 2), 'utf8');
+    console.log(`[TEAMS] Assigned DNI ${documentId} to team: ${team || 'Sin Equipo'}`);
+    
+    // Sync with GitHub Gist asynchronously
+    syncGist();
+    
+    res.json({ success: true, teams: teamsMapping });
+  } catch (error) {
+    console.error('Error saving team assignment:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
 // Endpoint: Check for OTA Updates
 app.get('/api/update/check', (req, res) => {
   const currentVersion = req.query.version;
@@ -423,6 +482,10 @@ app.get('/api/dashboard/stats', (req, res) => {
             const content = fs.readFileSync(path.join(AUDITS_DIR, file), 'utf8');
             const deviceData = JSON.parse(content);
             deviceData.isOnline = deviceData.lastActive ? (Date.now() - new Date(deviceData.lastActive).getTime()) < 45000 : false;
+            
+            // Inject team classification
+            deviceData.team = teamsMapping[deviceData.documentId] || 'Sin Equipo';
+            
             devices.push(deviceData);
           } catch (e) {
             console.error(`Error reading audit file ${file}:`, e);
