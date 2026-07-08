@@ -496,8 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${docId}</td>
         <td>${activeAppTag}</td>
         <td>
-          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: nowrap;">
-            <span class="badge ${onlineBadgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
+          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start; justify-content: center; width: 100%;">
+            <span class="badge ${onlineBadgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem; justify-content: center; width: max-content;">
               ${onlineText}
             </span>
             ${rowInactivityBadge}
@@ -505,11 +505,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td>${lastActiveFriendly}</td>
         <td>
-          <div style="display: flex; gap: 0.4rem; align-items: center;">
-            <button class="btn btn-secondary btn-sm table-request-audit-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
+          <div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch; justify-content: center; width: 100%;">
+            <button class="btn btn-secondary btn-sm table-request-audit-btn" style="padding: 0.25rem 0.4rem; font-size: 0.68rem; line-height: 1; text-align: center; white-space: nowrap; width: 100%;">
               Actualizar
             </button>
-            <button class="btn btn-secondary btn-sm table-details-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
+            <button class="btn btn-secondary btn-sm table-details-btn" style="padding: 0.25rem 0.4rem; font-size: 0.68rem; line-height: 1; text-align: center; white-space: nowrap; width: 100%;">
               Detalles
             </button>
           </div>

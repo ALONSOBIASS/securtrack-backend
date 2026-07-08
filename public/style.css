@@ -741,12 +741,12 @@ body {
 }
 
 /* Explicit Width Rules for Perfect Column Alignment */
-.devices-table th:nth-child(1), .devices-table td:nth-child(1) { width: 23%; word-break: break-word; }
-.devices-table th:nth-child(2), .devices-table td:nth-child(2) { width: 14%; }
-.devices-table th:nth-child(3), .devices-table td:nth-child(3) { width: 28%; word-break: break-word; }
-.devices-table th:nth-child(4), .devices-table td:nth-child(4) { width: 20%; }
-.devices-table th:nth-child(5), .devices-table td:nth-child(5) { width: 9%; }
-.devices-table th:nth-child(6), .devices-table td:nth-child(6) { width: 6%; }
+.devices-table th:nth-child(1), .devices-table td:nth-child(1) { width: 18%; word-break: break-word; }
+.devices-table th:nth-child(2), .devices-table td:nth-child(2) { width: 10%; }
+.devices-table th:nth-child(3), .devices-table td:nth-child(3) { width: 22%; word-break: break-word; }
+.devices-table th:nth-child(4), .devices-table td:nth-child(4) { width: 22%; }
+.devices-table th:nth-child(5), .devices-table td:nth-child(5) { width: 13%; }
+.devices-table th:nth-child(6), .devices-table td:nth-child(6) { width: 15%; }
 
 .devices-table th {
   color: #FFFFFF;
