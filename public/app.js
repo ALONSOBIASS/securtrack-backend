@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const devicesContainer = document.getElementById('devicesContainer');
   const devicesTableContainer = document.getElementById('devicesTableContainer');
   const devicesTableBody = document.getElementById('devicesTableBody');
-  const inactivityTableBody = document.getElementById('inactivityTableBody');
+  const inactivityTimeline = document.getElementById('inactivityTimeline');
   const deviceSearch = document.getElementById('deviceSearch');
   const exportDevicesBtn = document.getElementById('exportDevicesBtn');
   const exportInactivityBtn = document.getElementById('exportInactivityBtn');
@@ -256,6 +256,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper for friendly relative time
+  function getRelativeTime(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 5) return 'Justo ahora';
+    if (seconds < 60) return `Hace ${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `Hace ${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Hace ${hours}h`;
+    return date.toLocaleDateString('es-ES');
+  }
+
   // Render dashboard elements
   function renderDashboard() {
     // 1. KPI Numbers
@@ -290,7 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchTerm = deviceSearch.value.trim().toLowerCase();
     const filteredDevices = allDevices.filter(d => 
       d.fullName.toLowerCase().includes(searchTerm) || 
-      d.documentId.toLowerCase().includes(searchTerm)
+      d.documentId.toLowerCase().includes(searchTerm) ||
+      (d.activeWindow && d.activeWindow.toLowerCase().includes(searchTerm))
     );
 
     // 1. Check for empty results
@@ -302,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       devicesTableBody.innerHTML = `
         <tr>
-          <td colspan="5" class="no-data">No se encontraron equipos registrados.</td>
+          <td colspan="6" class="no-data">No se encontraron equipos registrados.</td>
         </tr>
       `;
       return;
@@ -312,6 +329,20 @@ document.addEventListener('DOMContentLoaded', () => {
     devicesTableBody.innerHTML = '';
 
     filteredDevices.forEach(device => {
+      // Active window name formatting
+      const activeWin = device.activeWindow || 'Ninguno';
+      const truncatedActiveWin = truncateString(activeWin, 25);
+      const activeAppTag = `
+        <div class="active-app-tag" title="${escapeHtml(activeWin)}">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle;">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span>${escapeHtml(truncatedActiveWin)}</span>
+        </div>
+      `;
+
       // --- Render Device Card ---
       const card = document.createElement('div');
       card.className = 'device-card';
@@ -329,13 +360,16 @@ document.addEventListener('DOMContentLoaded', () => {
       card.innerHTML = `
         <div class="device-card-header">
           <div class="device-user">
-            <h3 style="display: flex; align-items: center; gap: 6px;">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
               <span class="status-indicator ${onlineIndicatorClass}" title="${onlineIndicatorText}"></span>
               ${escapeHtml(device.fullName)}
             </h3>
             <p>ID: ${escapeHtml(device.documentId)}</p>
           </div>
           <span class="badge ${statusClass}">${device.status}</span>
+        </div>
+        <div style="margin-top: -6px; margin-bottom: 4px;">
+          ${activeAppTag}
         </div>
         <div class="device-specs">
           <div class="spec-item">
@@ -358,17 +392,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <polyline points="19 12 12 19 5 12"></polyline>
               </svg>
-              ${downloadSpeed} Mbps
+              ${downloadSpeed} M
             </span>
             <span class="speed-ul" title="Velocidad de Subida">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="19" x2="12" y2="5"></line>
                 <polyline points="5 12 12 5 19 12"></polyline>
               </svg>
-              ${uploadSpeed} Mbps
+              ${uploadSpeed} M
             </span>
           </div>
-          <button class="btn btn-secondary btn-sm request-audit-btn" style="font-size: 0.68rem; padding: 0.25rem 0.5rem; line-height: 1; border-color: rgba(255,255,255,0.15); color: #fff; background: rgba(255,255,255,0.05); cursor: pointer;">
+          <button class="btn btn-secondary btn-sm request-audit-btn" style="font-size: 0.68rem; padding: 0.25rem 0.5rem; line-height: 1; border-color: rgba(255,255,255,0.1); color: #94a3b8; background: rgba(255,255,255,0.03); cursor: pointer;">
             Actualizar
           </button>
         </div>
@@ -392,17 +426,22 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const onlineBadgeClass = device.isOnline ? 'badge-online' : 'badge-offline';
       const onlineText = device.isOnline ? 'FUNCIONANDO' : 'APAGADO';
-      const lastActiveStr = device.lastActive ? new Date(device.lastActive).toLocaleString('es-ES') : 'N/A';
+      const lastActiveFriendly = getRelativeTime(device.lastActive);
 
       row.innerHTML = `
         <td><strong>${escapeHtml(device.fullName)}</strong></td>
         <td>${escapeHtml(device.documentId)}</td>
         <td>
+          <span class="active-app-tag" style="background: rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.15);" title="${escapeHtml(activeWin)}">
+            ${escapeHtml(truncateString(activeWin, 22))}
+          </span>
+        </td>
+        <td>
           <span class="badge ${onlineBadgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
             ${onlineText}
           </span>
         </td>
-        <td>${lastActiveStr}</td>
+        <td>${lastActiveFriendly}</td>
         <td>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <button class="btn btn-secondary btn-sm table-request-audit-btn" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; line-height: 1;">
@@ -430,42 +469,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Render Inactivity Log Table
+  // Render Inactivity Log Timeline
   function renderInactivityAlerts() {
     if (allAlerts.length === 0) {
-      inactivityTableBody.innerHTML = `
-        <tr>
-          <td colspan="4" class="no-data">No hay alertas de inactividad registradas.</td>
-        </tr>
+      inactivityTimeline.innerHTML = `
+        <div class="no-data">No hay alertas de inactividad registradas.</div>
       `;
       return;
     }
 
-    inactivityTableBody.innerHTML = '';
+    inactivityTimeline.innerHTML = '';
     allAlerts.forEach(alert => {
-      const row = document.createElement('tr');
-      const timeString = new Date(alert.startTime).toLocaleString('es-ES');
+      const timeString = new Date(alert.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const dateFriendly = getRelativeTime(alert.startTime);
+      
       const minutes = Math.floor(alert.durationSeconds / 60);
       const seconds = Math.floor(alert.durationSeconds % 60);
       const durationStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 
-      row.innerHTML = `
-        <td><strong>${escapeHtml(alert.fullName)}</strong></td>
-        <td>${escapeHtml(alert.documentId)}</td>
-        <td>${timeString}</td>
-        <td><span class="inactivity-duration">${durationStr}</span></td>
+      const item = document.createElement('div');
+      item.className = 'timeline-item';
+      item.innerHTML = `
+        <div class="timeline-marker"></div>
+        <div class="timeline-content">
+          <div class="timeline-header">
+            <span class="timeline-user">${escapeHtml(alert.fullName)}</span>
+            <span class="timeline-time" title="${new Date(alert.startTime).toLocaleString('es-ES')}">${dateFriendly} (${timeString})</span>
+          </div>
+          <div class="timeline-body" style="margin-top: 4px;">
+            <span>DNI: ${escapeHtml(alert.documentId)}</span>
+            <span class="inactivity-duration">${durationStr}</span>
+          </div>
+        </div>
       `;
-      inactivityTableBody.appendChild(row);
+      inactivityTimeline.appendChild(item);
     });
   }
 
   // Open Details Modal for a Device
   function openDeviceDetails(device) {
-    modalDeviceName.textContent = `Reporte de: ${device.fullName}`;
+    modalDeviceName.textContent = `Reporte: ${device.fullName}`;
     
     // Evaluation Logic representation
     const cpuPass = device.hardware.cpuApto ? 'pass' : 'fail';
-    const ramPass = device.hardware.ramApto ? (device.hardware.ramGB >= 16 ? 'pass' : 'warn') : 'fail';
+    const ramPass = device.hardware.ramApto ? (device.hardware.ramGB >= 15.5 ? 'pass' : 'warn') : 'fail';
     const diskSpacePass = device.hardware.diskSpaceApto ? 'pass' : 'fail';
     const diskTypePass = device.hardware.isSSD ? 'pass' : 'fail';
     const osPass = device.hardware.osApto ? 'pass' : 'fail';
@@ -479,6 +526,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const bootTimeStr = new Date(device.uptime.bootTimestamp).toLocaleString('es-ES');
     const auditTimeStr = new Date(device.auditTimestamp).toLocaleString('es-ES');
+
+    // Progress Bar Percentages
+    const ramPct = Math.min(100, Math.round((device.hardware.ramGB / 16.0) * 100));
+    const diskPct = Math.min(100, Math.round((device.hardware.freeDiskGB / 240.0) * 100));
 
     modalBody.innerHTML = `
       <div class="detail-grid">
@@ -505,9 +556,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="detail-label">Versión de Agente</span>
             <span class="detail-value">${escapeHtml(device.agentVersion || '1.0.0')}</span>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Aplicación Activa</span>
-            <span class="detail-value text-highlight" title="${escapeHtml(device.activeWindow || 'Ninguno')}">${escapeHtml(device.activeWindow || 'Ninguno')}</span>
+          <div class="detail-row" style="background: rgba(59,130,246,0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(59,130,246,0.1);">
+            <span class="detail-label" style="font-weight:600; color:var(--color-secondary);">Aplicación Activa</span>
+            <span class="detail-value text-highlight" title="${escapeHtml(device.activeWindow || 'Ninguno')}" style="font-size:0.86rem; word-break:break-all;">
+              ${escapeHtml(device.activeWindow || 'Ninguno')}
+            </span>
           </div>
         </div>
 
@@ -520,15 +573,21 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="detail-row">
             <span class="detail-label">Memoria RAM</span>
-            <span class="detail-value ${ramPass}">${device.hardware.ramGB} GB ${device.hardware.ramGB >= 16 ? '(Recomendado)' : (device.hardware.ramGB >= 8 ? '(Mínimo)' : '(Insuficiente)')}</span>
+            <span class="detail-value ${ramPass}" style="display:inline-flex; align-items:center;">
+              <span>${device.hardware.ramGB} GB</span>
+              <div class="progress-bar-container"><div class="progress-bar-fill ${ramPass}" style="width: ${ramPct}%"></div></div>
+            </span>
           </div>
           <div class="detail-row">
-            <span class="detail-label font-bold">Tipo de Disco</span>
+            <span class="detail-label">Tipo de Disco</span>
             <span class="detail-value ${diskTypePass}">${device.hardware.isSSD ? 'SSD (Apto)' : 'HDD (No Apto)'}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Espacio Libre</span>
-            <span class="detail-value ${diskSpacePass}">${device.hardware.freeDiskGB.toFixed(1)} GB Libres</span>
+            <span class="detail-value ${diskSpacePass}" style="display:inline-flex; align-items:center;">
+              <span>${device.hardware.freeDiskGB.toFixed(0)} GB</span>
+              <div class="progress-bar-container"><div class="progress-bar-fill ${diskSpacePass}" style="width: ${diskPct}%"></div></div>
+            </span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Sistema Operativo</span>
@@ -549,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="detail-row">
             <span class="detail-label">Latencia (Ping)</span>
-            <span class="detail-value ${latencyPass}">${device.network.pingMs.toFixed(1)} ms</span>
+            <span class="detail-value ${latencyPass}">${device.network.pingMs.toFixed(0)} ms</span>
           </div>
         </div>
 
@@ -575,9 +634,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function showLoading(isLoading) {
     if (isLoading) {
       refreshBtn.disabled = true;
-      refreshBtn.innerHTML = '<span class="spinner" style="width:12px; height:12px; border-width:2px; display:inline-block; margin-right:6px;"></span> Actualizando...';
+      refreshBtn.classList.add('spin-anim');
+      refreshBtn.innerHTML = `
+        <span class="btn-icon">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20 15"></path>
+          </svg>
+        </span>
+        Actualizando...
+      `;
     } else {
       refreshBtn.disabled = false;
+      refreshBtn.classList.remove('spin-anim');
       refreshBtn.innerHTML = `
         <span class="btn-icon">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;">
@@ -604,17 +674,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
       </tr>
     `;
-    inactivityTableBody.innerHTML = `
-      <tr>
-        <td colspan="4" class="no-data" style="color: var(--color-danger); text-align:center;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px; display:inline-block;">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          ${escapeHtml(msg)}
-        </td>
-      </tr>
+    inactivityTimeline.innerHTML = `
+      <div class="no-data" style="color: var(--color-danger); text-align:center;">
+        ${escapeHtml(msg)}
+      </div>
     `;
   }
 
@@ -666,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    let csv = "Colaborador;DNI / ID;Estado;Procesador;RAM (GB);Tipo Disco;Espacio Libre (GB);S.O.;Descarga (Mbps);Subida (Mbps);Latencia (ms);Microfono;Camara;Encendido de PC;Fecha Auditoria\n";
+    let csv = "Colaborador;DNI / ID;Estado;Procesador;RAM (GB);Tipo Disco;Espacio Libre (GB);S.O.;Descarga (Mbps);Subida (Mbps);Latencia (ms);Microfono;Camara;Encendido de PC;Fecha Auditoria;Programa Activo\n";
     
     allDevices.forEach(d => {
       const isSSD = d.hardware.isSSD ? "SSD" : "HDD";
@@ -674,8 +737,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasCam = d.multimedia.hasWebcam ? "Si" : "No";
       const bootTime = d.uptime && d.uptime.bootTimestamp ? new Date(d.uptime.bootTimestamp).toLocaleString('es-ES') : 'N/A';
       const auditTime = new Date(d.auditTimestamp).toLocaleString('es-ES');
+      const actWin = d.activeWindow || 'Ninguno';
       
-      csv += `"${d.fullName}";"${d.documentId}";"${d.status}";"${d.hardware.cpuName}";${d.hardware.ramGB.toFixed(2)};"${isSSD}";${d.hardware.freeDiskGB.toFixed(2)};"${d.hardware.osName}";${d.network.downloadMbps ? d.network.downloadMbps.toFixed(1) : 0};${d.network.uploadMbps ? d.network.uploadMbps.toFixed(1) : 0};${d.network.pingMs ? d.network.pingMs.toFixed(0) : 0};"${hasMic}";"${hasCam}";"${bootTime}";"${auditTime}"\n`;
+      csv += `"${d.fullName}";"${d.documentId}";"${d.status}";"${d.hardware.cpuName}";${d.hardware.ramGB.toFixed(2)};"${isSSD}";${d.hardware.freeDiskGB.toFixed(2)};"${d.hardware.osName}";${d.network.downloadMbps ? d.network.downloadMbps.toFixed(1) : 0};${d.network.uploadMbps ? d.network.uploadMbps.toFixed(1) : 0};${d.network.pingMs ? d.network.pingMs.toFixed(0) : 0};"${hasMic}";"${hasCam}";"${bootTime}";"${auditTime}";"${actWin}"\n`;
     });
     
     downloadCSV(csv, "Equipos_Auditados_Biass.csv");
@@ -733,9 +797,9 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (data.success) {
         buttonEl.innerHTML = 'Solicitado ✔';
-        buttonEl.style.background = 'rgba(94, 255, 196, 0.2)';
-        buttonEl.style.borderColor = 'rgba(94, 255, 196, 0.4)';
-        buttonEl.style.color = '#5effc4';
+        buttonEl.style.background = 'var(--color-success-bg)';
+        buttonEl.style.borderColor = 'rgba(0, 245, 160, 0.4)';
+        buttonEl.style.color = 'var(--color-success)';
         
         setTimeout(() => {
           buttonEl.disabled = false;

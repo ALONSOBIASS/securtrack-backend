@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Validador BIASS</title>
-  <!-- Google Fonts -->
+  <title>SecurTrack - Panel de Monitoreo Inteligente</title>
+  <!-- Google Fonts: Outfit & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Link -->
   <link rel="stylesheet" href="style.css">
 </head>
@@ -21,8 +21,8 @@
       <div class="header-logo">
         <img src="biass_logo.png" alt="BIASS Logo" class="brand-logo-img">
         <div class="logo-text">
-          <h1>Validador</h1>
-          <p>Transformamos Ideas en Resultados &bull; Auditoría de Hardware y Control de Inactividad</p>
+          <h1>SecurTrack <span class="badge-validador">v1.1.0</span></h1>
+          <p>Auditoría de Hardware & Control de Actividad en Tiempo Real</p>
         </div>
       </div>
       <div class="header-actions">
@@ -78,7 +78,7 @@
       <!-- Aptos -->
       <div class="stat-card apto-card">
         <div class="stat-content">
-          <span class="stat-label">Aptos</span>
+          <span class="stat-label">Equipos Aptos</span>
           <span id="statAptos" class="stat-value">0</span>
           <span id="statAptosPct" class="stat-percentage">0% del total</span>
         </div>
@@ -107,7 +107,7 @@
       <!-- Alerts -->
       <div class="stat-card alerts-card">
         <div class="stat-content">
-          <span class="stat-label">Alertas de Inactividad</span>
+          <span class="stat-label">Alertas Inactividad</span>
           <span id="statAlerts" class="stat-value">0</span>
         </div>
         <div class="stat-icon">
@@ -146,7 +146,7 @@
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
               </span>
-              <input type="text" id="deviceSearch" placeholder="Buscar por DNI o nombre...">
+              <input type="text" id="deviceSearch" placeholder="Buscar DNI, nombre o proceso...">
             </div>
           </div>
         </div>
@@ -166,14 +166,15 @@
               <tr>
                 <th>Colaborador</th>
                 <th>DNI / ID</th>
+                <th>Aplicación Activa</th>
                 <th>Estado PC</th>
-                <th>Última Conexión</th>
+                <th>Última Actividad</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="devicesTableBody">
               <tr>
-                <td colspan="5" class="no-data">Cargando monitoreo de conexión...</td>
+                <td colspan="6" class="no-data">Cargando monitoreo de conexión...</td>
               </tr>
             </tbody>
           </table>
@@ -196,22 +197,11 @@
           </button>
         </div>
         
-        <div class="table-container">
-          <table class="alerts-table">
-            <thead>
-              <tr>
-                <th>Colaborador</th>
-                <th>DNI / ID</th>
-                <th>Inicio</th>
-                <th>Duración</th>
-              </tr>
-            </thead>
-            <tbody id="inactivityTableBody">
-              <tr>
-                <td colspan="4" class="no-data">Cargando alertas de inactividad...</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Timeline Container replacing table -->
+        <div class="timeline-container">
+          <div id="inactivityTimeline" class="timeline">
+            <div class="no-data">Cargando alertas de inactividad...</div>
+          </div>
         </div>
       </section>
     </main>
