@@ -23,8 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalDeviceName = document.getElementById('modalDeviceName');
   const modalBody = document.getElementById('modalBody');
 
+  // Status Filter Buttons
+  const filterAllBtn = document.getElementById('filterAllBtn');
+  const filterOnlineBtn = document.getElementById('filterOnlineBtn');
+  const filterOfflineBtn = document.getElementById('filterOfflineBtn');
+
   let allDevices = [];
   let allAlerts = [];
+  let activeStateFilter = 'all'; // 'all', 'online', 'offline'
 
   // Global State for Alerts
   let previousDeviceStates = {}; // documentId -> isOnline
@@ -304,22 +310,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // Filter and Render Devices (both Cards Grid and Connectivity List)
   function filterAndRenderDevices() {
     const searchTerm = deviceSearch.value.trim().toLowerCase();
-    const filteredDevices = allDevices.filter(d => 
+    
+    // First, apply text filter
+    let filteredDevices = allDevices.filter(d => 
       d.fullName.toLowerCase().includes(searchTerm) || 
       d.documentId.toLowerCase().includes(searchTerm) ||
       (d.activeWindow && d.activeWindow.toLowerCase().includes(searchTerm))
     );
 
+    // Second, apply state filter (Todos / Funcionando / Apagados)
+    if (activeStateFilter === 'online') {
+      filteredDevices = filteredDevices.filter(d => d.isOnline);
+    } else if (activeStateFilter === 'offline') {
+      filteredDevices = filteredDevices.filter(d => !d.isOnline);
+    }
+
     // 1. Check for empty results
     if (filteredDevices.length === 0) {
       devicesContainer.innerHTML = `
         <div class="no-data" style="grid-column: 1 / -1;">
-          <p>No se encontraron equipos registrados.</p>
+          <p>No se encontraron asesores en este estado.</p>
         </div>
       `;
       devicesTableBody.innerHTML = `
         <tr>
-          <td colspan="6" class="no-data">No se encontraron equipos registrados.</td>
+          <td colspan="6" class="no-data">No se encontraron asesores en este estado.</td>
         </tr>
       `;
       return;
@@ -329,6 +344,20 @@ document.addEventListener('DOMContentLoaded', () => {
     devicesTableBody.innerHTML = '';
 
     filteredDevices.forEach(device => {
+      // Calculate Cumulative Inactivity Minutes
+      const totalInactivitySeconds = allAlerts
+        .filter(a => a.documentId === device.documentId)
+        .reduce((sum, a) => sum + a.durationSeconds, 0);
+      const totalInactivityMinutes = Math.round(totalInactivitySeconds / 60);
+
+      const totalInactivityBadge = totalInactivityMinutes > 0
+        ? `<span class="inactivity-badge-total" title="Minutos inactivos acumulados en el historial">🕒 Inactivo: ${totalInactivityMinutes}m</span>`
+        : `<span class="inactivity-badge-total zero" title="Sin inactividad registrada">🕒 Inactivo: 0m</span>`;
+
+      const rowInactivityBadge = totalInactivityMinutes > 0
+        ? `<span class="inactivity-badge-total" style="font-size:0.68rem; padding: 0.2rem 0.5rem;" title="Minutos inactivos acumulados en el historial">🕒 ${totalInactivityMinutes}m</span>`
+        : `<span class="inactivity-badge-total zero" style="font-size:0.68rem; padding: 0.2rem 0.5rem;">🕒 0m</span>`;
+
       // Active window name formatting
       const activeWin = device.activeWindow || 'Ninguno';
       const truncatedActiveWin = truncateString(activeWin, 25);
@@ -366,7 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </h3>
             <p>ID: ${escapeHtml(device.documentId)}</p>
           </div>
-          <span class="badge ${statusClass}">${device.status}</span>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <span class="badge ${statusClass}">${device.status}</span>
+            ${totalInactivityBadge}
+          </div>
         </div>
         <div style="margin-top: -6px; margin-bottom: 4px;">
           ${activeAppTag}
@@ -437,9 +469,12 @@ document.addEventListener('DOMContentLoaded', () => {
           </span>
         </td>
         <td>
-          <span class="badge ${onlineBadgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
-            ${onlineText}
-          </span>
+          <div style="display: flex; gap: 0.4rem; align-items: center;">
+            <span class="badge ${onlineBadgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; padding: 0.2rem 0.5rem;">
+              ${onlineText}
+            </span>
+            ${rowInactivityBadge}
+          </div>
         </td>
         <td>${lastActiveFriendly}</td>
         <td>
@@ -531,6 +566,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const ramPct = Math.min(100, Math.round((device.hardware.ramGB / 16.0) * 100));
     const diskPct = Math.min(100, Math.round((device.hardware.freeDiskGB / 240.0) * 100));
 
+    // Calculate Cumulative Inactivity Minutes
+    const totalInactivitySeconds = allAlerts
+      .filter(a => a.documentId === device.documentId)
+      .reduce((sum, a) => sum + a.durationSeconds, 0);
+    const totalInactivityMinutes = Math.round(totalInactivitySeconds / 60);
+
     modalBody.innerHTML = `
       <div class="detail-grid">
         <!-- Colaborador Section -->
@@ -556,6 +597,14 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="detail-label">Versión de Agente</span>
             <span class="detail-value">${escapeHtml(device.agentVersion || '1.0.0')}</span>
           </div>
+          
+          <div class="detail-row" style="background: rgba(255, 208, 116, 0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 208, 116, 0.15); margin-top: 0.5rem; margin-bottom: 0.5rem;">
+            <span class="detail-label" style="font-weight:600; color:var(--color-warning);">Inactividad Acumulada</span>
+            <span class="detail-value" style="color:var(--color-warning); font-weight:700;">
+              ${totalInactivityMinutes} min (${Math.round(totalInactivitySeconds)} seg)
+            </span>
+          </div>
+
           <div class="detail-row" style="background: rgba(59,130,246,0.04); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(59,130,246,0.1);">
             <span class="detail-label" style="font-weight:600; color:var(--color-secondary);">Aplicación Activa</span>
             <span class="detail-value text-highlight" title="${escapeHtml(device.activeWindow || 'Ninguno')}" style="font-size:0.86rem; word-break:break-all;">
@@ -579,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">Tipo de Disco</span>
+            <span class="spec-key">Tipo de Disco</span>
             <span class="detail-value ${diskTypePass}">${device.hardware.isSSD ? 'SSD (Apto)' : 'HDD (No Apto)'}</span>
           </div>
           <div class="detail-row">
@@ -834,6 +883,31 @@ document.addEventListener('DOMContentLoaded', () => {
     tabCardsBtn.classList.remove('active');
     devicesContainer.style.display = 'none';
     devicesTableContainer.style.display = 'block';
+  });
+
+  // State Filter Button Listeners
+  filterAllBtn.addEventListener('click', () => {
+    activeStateFilter = 'all';
+    filterAllBtn.classList.add('active');
+    filterOnlineBtn.classList.remove('active');
+    filterOfflineBtn.classList.remove('active');
+    filterAndRenderDevices();
+  });
+
+  filterOnlineBtn.addEventListener('click', () => {
+    activeStateFilter = 'online';
+    filterOnlineBtn.classList.add('active');
+    filterAllBtn.classList.remove('active');
+    filterOfflineBtn.classList.remove('active');
+    filterAndRenderDevices();
+  });
+
+  filterOfflineBtn.addEventListener('click', () => {
+    activeStateFilter = 'offline';
+    filterOfflineBtn.classList.add('active');
+    filterAllBtn.classList.remove('active');
+    filterOnlineBtn.classList.remove('active');
+    filterAndRenderDevices();
   });
 
   // Initial Fetch & Auto-Refresh every 15 seconds to track active status
