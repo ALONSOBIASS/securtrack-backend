@@ -694,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <option value="Equipo Fatima" ${currentTeam === 'Equipo Fatima' ? 'selected' : ''}>Equipo Fatima</option>
             <option value="Equipo Lobos" ${currentTeam === 'Equipo Lobos' ? 'selected' : ''}>Equipo Lobos</option>
             <option value="Equipo Aguilas" ${currentTeam === 'Equipo Aguilas' ? 'selected' : ''}>Equipo Aguilas</option>
-            <option value="Equipo Sexson" ${currentTeam === 'Equipo Sexson' ? 'selected' : ''}>Equipo Sexson</option>
+            <option value="Equipo Leones" ${currentTeam === 'Equipo Leones' ? 'selected' : ''}>Equipo Leones</option>
           </select>
         </span>
       </div>
