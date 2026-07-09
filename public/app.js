@@ -816,6 +816,15 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       </div>
+      <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+        <button class="btn btn-danger btn-sm request-uninstall-btn" style="background: #dc2626; border: 1px solid #dc2626; color: white; padding: 0.5rem 1rem; font-size: 0.8rem; line-height: 1; cursor: pointer; border-radius: 6px; font-weight: 700; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          Desinstalar Agente de PC
+        </button>
+      </div>
     `;
     
     deviceModal.classList.add('open');
@@ -845,6 +854,29 @@ document.addEventListener('DOMContentLoaded', () => {
           alert("Error al conectar con el servidor.");
         } finally {
           modalTeamSelect.disabled = false;
+        }
+      });
+    }
+
+    // Bind event listener to request remote uninstall
+    const uninstallBtn = modalBody.querySelector('.request-uninstall-btn');
+    if (uninstallBtn) {
+      uninstallBtn.addEventListener('click', async () => {
+        if (!confirm(`¿Estás seguro de que deseas desinstalar SecurTrack de la PC de ${device.fullName}? Esto detendrá el monitoreo y eliminará los archivos de su PC.`)) return;
+        uninstallBtn.disabled = true;
+        try {
+          const res = await fetch(`/api/devices/${device.documentId}/request-uninstall`, { method: 'POST' });
+          const data = await res.json();
+          if (data.success) {
+            showToast("Desinstalación Solicitada", `Se envió el comando de autodestrucción a la PC de ${device.fullName}.`, 'warning');
+            deviceModal.classList.remove('open');
+          } else {
+            alert("Error al solicitar desinstalación: " + data.error);
+          }
+        } catch (e) {
+          alert("Error de conexión al solicitar desinstalación.");
+        } finally {
+          uninstallBtn.disabled = false;
         }
       });
     }

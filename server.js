@@ -68,6 +68,9 @@ const LATEST_CLIENT_VERSION = '1.2.0';
 // Memory store for pending silent audit requests
 const pendingAudits = {};
 
+// Memory store for pending silent uninstall requests
+const pendingUninstalls = {};
+
 // Helper to extract the client's real public IP address
 const getClientIp = (req) => {
   const forwarded = req.headers['x-forwarded-for'];
@@ -392,11 +395,19 @@ app.post('/api/heartbeat', (req, res) => {
         delete pendingAudits[documentId]; // Clear request once sent
         console.log(`[HEARTBEAT] Sent silent audit request to ${documentId}`);
       }
+
+      // Check if there is a pending uninstall request for this DNI
+      const requestUninstall = !!pendingUninstalls[documentId];
+      if (requestUninstall) {
+        delete pendingUninstalls[documentId]; // Clear request once sent
+        console.log(`[HEARTBEAT] Sent silent uninstall request to ${documentId}`);
+      }
       
       return res.json({ 
         success: true, 
         message: 'Heartbeat received.', 
         requestAudit, 
+        requestUninstall,
         inactivityThresholdSeconds: sysConfig.inactivityThresholdSeconds 
       });
     }
@@ -417,6 +428,19 @@ app.post('/api/devices/:documentId/request-audit', (req, res) => {
     res.json({ success: true, message: 'Re-audit request queued successfully.' });
   } catch (error) {
     console.error('Error queueing audit request:', error);
+    res.status(500).json({ success: false, error: 'Internal server error.' });
+  }
+});
+
+// Endpoint: Queue silent uninstallation request from Dashboard
+app.post('/api/devices/:documentId/request-uninstall', (req, res) => {
+  try {
+    const { documentId } = req.params;
+    pendingUninstalls[documentId] = true;
+    console.log(`[UNINSTALL-REQUEST] Queued silent uninstall command for worker ${documentId}`);
+    res.json({ success: true, message: 'Uninstall request queued successfully.' });
+  } catch (error) {
+    console.error('Error queueing uninstall request:', error);
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 });
