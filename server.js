@@ -68,6 +68,48 @@ const LATEST_CLIENT_VERSION = '1.1.0';
 // Memory store for pending silent audit requests
 const pendingAudits = {};
 
+// Helper to extract the client's real public IP address
+const getClientIp = (req) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress;
+};
+
+// Helper to resolve an IP address to geographic location and ISP details
+async function getIpLocation(ip) {
+  if (!ip || ip === '::1' || ip === '127.0.0.1' || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('172.16.')) {
+    return {
+      publicIp: ip || 'Local',
+      location: 'Conexión Local / VPN',
+      isp: 'Intranet / Localhost'
+    };
+  }
+
+  try {
+    const res = await fetch(`http://ip-api.com/json/${ip}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === 'success') {
+        return {
+          publicIp: ip,
+          location: `${data.city || 'Desconocida'}, ${data.country || 'Desconocido'}`,
+          isp: data.isp || 'Desconocido'
+        };
+      }
+    }
+  } catch (e) {
+    console.error(`[GEOLOCATION] Error fetching location for IP ${ip}:`, e);
+  }
+
+  return {
+    publicIp: ip,
+    location: 'Desconocida',
+    isp: 'Desconocido'
+  };
+}
+
 async function initGistDatabase() {
   if (!GITHUB_TOKEN) {
     console.warn('[GIST] WARNING: GITHUB_TOKEN environment variable not set. Persisted database will not be restored.');
@@ -271,12 +313,19 @@ function isOlderVersion(current, latest) {
 }
 
 // Endpoint: Send Audit Report
-app.post('/api/audit', (req, res) => {
+app.post('/api/audit', async (req, res) => {
   try {
     const auditData = req.body;
     if (!auditData.documentId || !auditData.fullName) {
       return res.status(400).json({ success: false, error: 'DocumentId and FullName are required.' });
     }
+
+    // Capture and fetch geolocation info
+    const clientIp = getClientIp(req);
+    const locInfo = await getIpLocation(clientIp);
+    auditData.publicIp = locInfo.publicIp;
+    auditData.location = locInfo.location;
+    auditData.isp = locInfo.isp;
 
     const filename = `${auditData.documentId}.json`;
     const filePath = path.join(AUDITS_DIR, filename);
@@ -284,7 +333,7 @@ app.post('/api/audit', (req, res) => {
     // Save/Overwrite the audit file for the user
     auditData.lastActive = new Date().toISOString();
     fs.writeFileSync(filePath, JSON.stringify(auditData, null, 2), 'utf8');
-    console.log(`[AUDIT] Saved report for ${auditData.fullName} (${auditData.documentId})`);
+    console.log(`[AUDIT] Saved report for ${auditData.fullName} (${auditData.documentId}) from IP ${clientIp}`);
 
     // Backup to GitHub Gist asynchronously
     syncGist();
@@ -312,7 +361,30 @@ app.post('/api/heartbeat', (req, res) => {
       const data = JSON.parse(content);
       data.lastActive = new Date().toISOString();
       data.activeWindow = activeWindow || 'Ninguno';
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+
+      // Capture client IP and run async geolocation lookup if it changed
+      const currentIp = getClientIp(req);
+      if (data.publicIp !== currentIp) {
+        data.publicIp = currentIp;
+        getIpLocation(currentIp).then(locInfo => {
+          try {
+            if (fs.existsSync(filePath)) {
+              const latestData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+              latestData.publicIp = locInfo.publicIp;
+              latestData.location = locInfo.location;
+              latestData.isp = locInfo.isp;
+              fs.writeFileSync(filePath, JSON.stringify(latestData, null, 2), 'utf8');
+              syncGist();
+            }
+          } catch (err) {
+            console.error('[HEARTBEAT-LOC] Error updating async location:', err);
+          }
+        }).catch(err => {
+          console.error('[HEARTBEAT-LOC] Location lookup failed:', err);
+        });
+      } else {
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      }
       
       // Check if there is a pending audit request for this DNI
       const requestAudit = !!pendingAudits[documentId];

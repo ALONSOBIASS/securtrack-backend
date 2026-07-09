@@ -789,6 +789,18 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="detail-label">Latencia (Ping)</span>
             <span class="detail-value ${latencyPass}">${device.network.pingMs.toFixed(0)} ms</span>
           </div>
+          <div class="detail-row" style="border-top: 1px dashed var(--border-glass); margin-top: 0.5rem; padding-top: 0.5rem;">
+            <span class="detail-label">IP Pública</span>
+            <span class="detail-value"><strong>${escapeHtml(device.publicIp || 'Pendiente')}</strong></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Ubicación</span>
+            <span class="detail-value" title="${escapeHtml(device.location || 'Pendiente')}">${escapeHtml(device.location || 'Pendiente')}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Proveedor (ISP)</span>
+            <span class="detail-value" title="${escapeHtml(device.isp || 'Pendiente')}">${escapeHtml(device.isp || 'Pendiente')}</span>
+          </div>
         </div>
 
         <!-- Multimedia Evaluation -->
@@ -947,7 +959,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    let csv = "Colaborador;DNI / ID;Equipo;Estado;Procesador;RAM (GB);Tipo Disco;Espacio Libre (GB);S.O.;Descarga (Mbps);Subida (Mbps);Latencia (ms);Microfono;Camara;Encendido de PC;Fecha Auditoria;Programa Activo\n";
+    let csv = "Colaborador;DNI / ID;Equipo;Estado;Procesador;RAM (GB);Tipo Disco;Espacio Libre (GB);S.O.;Descarga (Mbps);Subida (Mbps);Latencia (ms);Microfono;Camara;Encendido de PC;Fecha Auditoria;Programa Activo;IP Publica;Ubicacion;ISP\n";
     
     allDevices.forEach(d => {
       const isSSD = d.hardware.isSSD ? "SSD" : "HDD";
@@ -958,7 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const actWin = d.activeWindow || 'Ninguno';
       const devTeam = d.team || 'Sin Equipo';
       
-      csv += `"${d.fullName}";"${d.documentId}";"${devTeam}";"${d.status}";"${d.hardware.cpuName}";${d.hardware.ramGB.toFixed(2)};"${isSSD}";${d.hardware.freeDiskGB.toFixed(2)};"${d.hardware.osName}";${d.network.downloadMbps ? d.network.downloadMbps.toFixed(1) : 0};${d.network.uploadMbps ? d.network.uploadMbps.toFixed(1) : 0};${d.network.pingMs ? d.network.pingMs.toFixed(0) : 0};"${hasMic}";"${hasCam}";"${bootTime}";"${auditTime}";"${actWin}"\n`;
+      csv += `"${d.fullName}";"${d.documentId}";"${devTeam}";"${d.status}";"${d.hardware.cpuName}";${d.hardware.ramGB.toFixed(2)};"${isSSD}";${d.hardware.freeDiskGB.toFixed(2)};"${d.hardware.osName}";${d.network.downloadMbps ? d.network.downloadMbps.toFixed(1) : 0};${d.network.uploadMbps ? d.network.uploadMbps.toFixed(1) : 0};${d.network.pingMs ? d.network.pingMs.toFixed(0) : 0};"${hasMic}";"${hasCam}";"${bootTime}";"${auditTime}";"${actWin}";"${d.publicIp || 'N/A'}";"${d.location || 'N/A'}";"${d.isp || 'N/A'}"\n`;
     });
     
     downloadCSV(csv, "Equipos_Auditados_Biass.csv");
