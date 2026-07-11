@@ -63,7 +63,7 @@ if (fs.existsSync(TEAMS_FILE)) {
 }
 
 // Current active client version (change this to test OTA updates)
-const LATEST_CLIENT_VERSION = '1.2.3';
+const LATEST_CLIENT_VERSION = '1.2.4';
 
 // Memory store for pending silent audit requests
 const pendingAudits = {};
@@ -403,11 +403,16 @@ app.post('/api/heartbeat', (req, res) => {
         console.log(`[HEARTBEAT] Sent silent uninstall request to ${documentId}`);
       }
       
+      // Force immediate OTA update check on clients with old versions (before 1.2.3 fix)
+      const clientVersion = req.body.version || req.headers['x-agent-version'] || '';
+      const needsForceUpdate = clientVersion && clientVersion < '1.2.3';
+
       return res.json({ 
         success: true, 
         message: 'Heartbeat received.', 
         requestAudit, 
         requestUninstall,
+        forceUpdate: needsForceUpdate,
         inactivityThresholdSeconds: sysConfig.inactivityThresholdSeconds 
       });
     }
