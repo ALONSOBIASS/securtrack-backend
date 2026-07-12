@@ -63,7 +63,7 @@ if (fs.existsSync(TEAMS_FILE)) {
 }
 
 // Current active client version (change this to test OTA updates)
-const LATEST_CLIENT_VERSION = '1.2.5';
+const LATEST_CLIENT_VERSION = '1.2.6';
 
 // Memory store for pending silent audit requests
 const pendingAudits = {};
